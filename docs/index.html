@@ -22,34 +22,38 @@
         <!-- 配置面板 -->
         <section id="configPanel" class="config-panel" style="display: none;">
             <h2>连接到 GitHub</h2>
-            <div class="form-group">
-                <label>GitHub Token (Personal Access Token)</label>
-                <input type="password" id="githubToken" placeholder="ghp_xxxxxxxx">
-                <small>
-                    <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
-                        点击创建 Token → 勾选 <code>repo</code> 权限
-                    </a>
-                    <span class="warning-text">⚠️ 必须勾选 repo 权限！</span>
-                </small>
-            </div>
-            <div class="form-row">
+            <div class="config-form">
                 <div class="form-group">
-                    <label>仓库所有者 (Owner)</label>
-                    <input type="text" id="repoOwner" placeholder="username">
-                    <small>你的 GitHub 用户名</small>
+                    <label>GitHub Token (Personal Access Token)</label>
+                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxx">
+                    <small>
+                        <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
+                            点击创建 Token → 勾选 <code>repo</code> 权限
+                        </a>
+                        <span class="warning-text">⚠️ 必须勾选 repo 权限！</span>
+                    </small>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>仓库所有者 (Owner)</label>
+                        <input type="text" id="repoOwner" placeholder="username">
+                        <small>你的 GitHub 用户名</small>
+                    </div>
+                    <div class="form-group">
+                        <label>仓库名 (Repo)</label>
+                        <input type="text" id="repoName" placeholder="my-files">
+                        <small>你创建的仓库名</small>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>仓库名 (Repo)</label>
-                    <input type="text" id="repoName" placeholder="my-files">
-                    <small>你创建的仓库名</small>
+                    <label>Release 标签 (Tag)</label>
+                    <input type="text" id="releaseTag" placeholder="latest" value="latest">
+                    <small>不同标签可用于组织不同版本的文件</small>
+                </div>
+                <div class="button-group">
+                    <button type="button" id="connectButton" class="btn-primary">🔗 连接仓库</button>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Release 标签 (Tag)</label>
-                <input type="text" id="releaseTag" placeholder="latest" value="latest">
-                <small>不同标签可用于组织不同版本的文件</small>
-            </div>
-            <button onclick="saveConfig()" class="btn-primary">🔗 连接仓库</button>
             <div class="info-box">
                 <p>💡 <strong>重要提示：</strong></p>
                 <ul>

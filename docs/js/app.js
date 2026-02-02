@@ -14,10 +14,10 @@ function getConfig() {
 
 // 保存配置
 function saveConfig() {
-    const token = document.getElementById('githubToken').value.trim();
-    const owner = document.getElementById('repoOwner').value.trim();
-    const repo = document.getElementById('repoName').value.trim();
-    const tag = document.getElementById('releaseTag').value.trim() || 'latest';
+    const token = document.getElementById('githubToken')?.value.trim() || '';
+    const owner = document.getElementById('repoOwner')?.value.trim() || '';
+    const repo = document.getElementById('repoName')?.value.trim() || '';
+    const tag = document.getElementById('releaseTag')?.value.trim() || 'latest';
 
     if (!token || !owner || !repo) {
         showStatus('请填写完整的配置信息', 'error');
@@ -60,28 +60,38 @@ async function verifyConfig(token, owner, repo) {
             }
         }
 
-        showStatus('连接成功！', 'success');
+        showStatus('✅ 连接成功！', 'success');
         loadFiles();
     } catch (error) {
-        showStatus('配置验证失败：' + error.message, 'error');
+        showStatus('❌ 配置验证失败：' + error.message, 'error');
     }
 }
 
 // 加载配置
 function loadConfig() {
     const config = getConfig();
-    document.getElementById('githubToken').value = config.token;
-    document.getElementById('repoOwner').value = config.owner;
-    document.getElementById('repoName').value = config.repo;
-    document.getElementById('releaseTag').value = config.tag;
+    const tokenInput = document.getElementById('githubToken');
+    const ownerInput = document.getElementById('repoOwner');
+    const repoInput = document.getElementById('repoName');
+    const tagInput = document.getElementById('releaseTag');
+
+    if (tokenInput) tokenInput.value = config.token;
+    if (ownerInput) ownerInput.value = config.owner;
+    if (repoInput) repoInput.value = config.repo;
+    if (tagInput) tagInput.value = config.tag;
 }
 
 // 显示状态消息
 function showStatus(message, type) {
     const statusEl = document.getElementById('statusText');
+    if (!statusEl) return;
+
     statusEl.textContent = message;
     statusEl.className = type;
-    setTimeout(() => { statusEl.textContent = ''; }, 8000);
+    setTimeout(() => { 
+        statusEl.textContent = ''; 
+        statusEl.className = '';
+    }, 8000);
 }
 
 // 格式化文件大小
@@ -101,7 +111,7 @@ async function loadFiles() {
         return;
     }
 
-    showStatus('加载中...', 'info');
+    showStatus('📂 加载中...', 'info');
     try {
         const response = await fetch(
             `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases`,
@@ -127,17 +137,19 @@ async function loadFiles() {
 
         const releases = await response.json();
         displayFiles(releases);
-        showStatus('加载完成', 'success');
+        showStatus('✅ 加载完成', 'success');
     } catch (error) {
-        showStatus('加载失败：' + error.message, 'error');
+        showStatus('❌ 加载失败：' + error.message, 'error');
     }
 }
 
 // 显示文件列表
 function displayFiles(releases) {
     const container = document.getElementById('filesList');
+    if (!container) return;
+
     if (!releases || releases.length === 0) {
-        container.innerHTML = '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
+        container.innerHTML = '<p class="empty-state">📁 暂无文件，上传一个文件试试吧！</p>';
         return;
     }
 
@@ -151,18 +163,18 @@ function displayFiles(releases) {
                 html += `
                     <div class="file-item">
                         <div class="file-info">
-                            <div class="file-name">${asset.name}</div>
+                            <div class="file-name">${escapeHtml(asset.name)}</div>
                             <div class="file-meta">
                                 <span class="file-size">${formatFileSize(asset.size)}</span>
                                 <span class="file-downloads">${asset.download_count} 次下载</span>
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="btn-download" onclick="downloadFile('${asset.browser_download_url}')">
-                                下载
+                            <button class="btn-download" onclick="downloadFile('${escapeHtml(asset.browser_download_url)}')">
+                                📥 下载
                             </button>
-                            <button class="btn-delete" onclick="deleteFile('${config.owner}', '${config.repo}', ${asset.id}, '${asset.name}')">
-                                删除
+                            <button class="btn-delete" onclick="deleteFile('${escapeHtml(config.owner)}', '${escapeHtml(config.repo)}', ${asset.id}, '${escapeHtml(asset.name)}')">
+                                🗑️ 删除
                             </button>
                         </div>
                     </div>
@@ -172,7 +184,14 @@ function displayFiles(releases) {
         }
     });
 
-    container.innerHTML = html || '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
+    container.innerHTML = html || '<p class="empty-state">📁 暂无文件，上传一个文件试试吧！</p>';
+}
+
+// HTML 转义
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // 下载文件
@@ -187,7 +206,7 @@ async function deleteFile(owner, repo, assetId, assetName) {
     }
 
     const config = getConfig();
-    showStatus('删除中...', 'info');
+    showStatus('🗑️ 删除中...', 'info');
 
     try {
         const response = await fetch(
@@ -211,10 +230,10 @@ async function deleteFile(owner, repo, assetId, assetName) {
             }
         }
 
-        showStatus('删除成功', 'success');
+        showStatus('✅ 删除成功', 'success');
         loadFiles();
     } catch (error) {
-        showStatus('删除失败：' + error.message, 'error');
+        showStatus('❌ 删除失败：' + error.message, 'error');
     }
 }
 
@@ -230,9 +249,9 @@ async function uploadFile(file) {
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
 
-    progressEl.style.display = 'block';
-    progressFill.style.width = '0%';
-    progressText.textContent = '检查 Release...';
+    if (progressEl) progressEl.style.display = 'block';
+    if (progressFill) progressFill.style.width = '0%';
+    if (progressText) progressText.textContent = '检查 Release...';
 
     try {
         // 检查或创建 Release
@@ -240,7 +259,7 @@ async function uploadFile(file) {
         let isNewRelease = false;
 
         try {
-            progressText.textContent = '查找 Release...';
+            if (progressText) progressText.textContent = '🔍 查找 Release...';
             const releaseResponse = await fetch(
                 `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases/tags/${config.tag}`,
                 {
@@ -253,9 +272,8 @@ async function uploadFile(file) {
 
             if (releaseResponse.ok) {
                 release = await releaseResponse.json();
-                progressText.textContent = '找到 Release...';
+                if (progressText) progressText.textContent = '✅ 找到 Release';
             } else if (releaseResponse.status === 404) {
-                // Release 不存在，需要创建
                 isNewRelease = true;
             } else {
                 throw new Error('检查 Release 失败');
@@ -265,8 +283,8 @@ async function uploadFile(file) {
         }
 
         if (isNewRelease) {
-            progressText.textContent = '创建 Release...';
-            progressFill.style.width = '20%';
+            if (progressText) progressText.textContent = '🏷️ 创建 Release...';
+            if (progressFill) progressFill.style.width = '20%';
 
             try {
                 const createResponse = await fetch(
@@ -307,15 +325,15 @@ async function uploadFile(file) {
             }
         }
 
-        progressText.textContent = '准备上传...';
-        progressFill.style.width = '30%';
+        if (progressText) progressText.textContent = '📤 准备上传...';
+        if (progressFill) progressFill.style.width = '30%';
 
         // 上传文件到 Release
         const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(file.name)}`);
 
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
+            if (e.lengthComputable && progressFill && progressText) {
                 const percent = Math.round((e.loaded / e.total) * 70) + 30;
                 progressFill.style.width = percent + '%';
                 progressText.textContent = percent + '%';
@@ -324,11 +342,13 @@ async function uploadFile(file) {
 
         xhr.addEventListener('load', () => {
             if (xhr.status === 200 || xhr.status === 201 || xhr.status === 202) {
-                progressFill.style.width = '100%';
-                progressText.textContent = '上传完成';
-                showStatus('上传成功！', 'success');
+                if (progressFill) progressFill.style.width = '100%';
+                if (progressText) progressText.textContent = '✅ 上传完成';
+                showStatus('✅ 上传成功！', 'success');
                 loadFiles();
-                setTimeout(() => { progressEl.style.display = 'none'; }, 2000);
+                setTimeout(() => { 
+                    if (progressEl) progressEl.style.display = 'none'; 
+                }, 2000);
             } else {
                 let errorMsg = '上传失败';
                 if (xhr.status === 413) {
@@ -336,19 +356,19 @@ async function uploadFile(file) {
                 } else if (xhr.status === 422) {
                     errorMsg = '文件名冲突或格式不支持';
                 }
-                showStatus(errorMsg + ` (${xhr.status})`, 'error');
-                progressEl.style.display = 'none';
+                showStatus('❌ ' + errorMsg + ` (${xhr.status})`, 'error');
+                if (progressEl) progressEl.style.display = 'none';
             }
         });
 
         xhr.addEventListener('error', () => {
-            showStatus('网络错误，请检查连接', 'error');
-            progressEl.style.display = 'none';
+            showStatus('❌ 网络错误，请检查连接', 'error');
+            if (progressEl) progressEl.style.display = 'none';
         });
 
         xhr.addEventListener('timeout', () => {
-            showStatus('上传超时，请重试', 'error');
-            progressEl.style.display = 'none';
+            showStatus('❌ 上传超时，请重试', 'error');
+            if (progressEl) progressEl.style.display = 'none';
         });
 
         xhr.open('POST', uploadUrl, true);
@@ -359,8 +379,8 @@ async function uploadFile(file) {
         xhr.send(file);
 
     } catch (error) {
-        showStatus('上传失败：' + error.message, 'error');
-        progressEl.style.display = 'none';
+        showStatus('❌ 上传失败：' + error.message, 'error');
+        if (progressEl) progressEl.style.display = 'none';
     }
 }
 
@@ -369,13 +389,15 @@ function initDragUpload() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
+    if (!dropZone || !fileInput) return;
+
     dropZone.addEventListener('click', () => fileInput.click());
 
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             const file = e.target.files[0];
             if (file.size > 100 * 1024 * 1024) { // 100MB
-                showStatus('文件大小超过 100MB 限制', 'error');
+                showStatus('❌ 文件大小超过 100MB 限制', 'error');
                 return;
             }
             uploadFile(file);
@@ -397,7 +419,7 @@ function initDragUpload() {
         if (e.dataTransfer.files.length > 0) {
             const file = e.dataTransfer.files[0];
             if (file.size > 100 * 1024 * 1024) { // 100MB
-                showStatus('文件大小超过 100MB 限制', 'error');
+                showStatus('❌ 文件大小超过 100MB 限制', 'error');
                 return;
             }
             uploadFile(file);
@@ -408,7 +430,9 @@ function initDragUpload() {
 // 切换配置面板
 function toggleConfig() {
     const panel = document.getElementById('configPanel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
 }
 
 // 页面加载时初始化
@@ -422,6 +446,17 @@ document.addEventListener('DOMContentLoaded', () => {
         verifyConfig(config.token, config.owner, config.repo);
     } else {
         // 第一次使用时显示配置面板
-        document.getElementById('configPanel').style.display = 'block';
+        const panel = document.getElementById('configPanel');
+        if (panel) panel.style.display = 'block';
+    }
+
+    // 绑定按钮事件（备用）
+    const connectButton = document.getElementById('connectButton');
+    if (connectButton) {
+        connectButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            saveConfig();
+        });
     }
 });
