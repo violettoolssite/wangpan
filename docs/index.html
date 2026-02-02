@@ -110,80 +110,32 @@
 
         <!-- 使用说明 -->
         <section class="help-section">
-            <h2>使用指南</h2>
-            <div class="help-content">
-                <div class="help-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>在仓库创建一个 Release</h3>
-                        <p>
-                            访问
-                            <a href="https://github.com/violettoolssite/wangpanTest/releases/new" target="_blank">
-                                GitHub Releases/New
-                            </a>
-                            <br>
-                            输入 Tag: <code>v1.0.0</code>，创建一个初始 Release
-                        </p>
-                    </div>
-                </div>
-                <div class="help-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>创建 GitHub Token（完整权限）</h3>
-                        <p>
-                            访问
-                            <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
-                                GitHub Settings → Tokens
-                            </a>
-                            <br>
-                            必须勾选 repo 及其所有子权限
-                        </p>
-                    </div>
-                </div>
-                <div class="help-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>连接并使用</h3>
-                        <p>填写 Token 和仓库信息（Tag 使用刚创建的），开始上传文件</p>
-                    </div>
-                </div>
-            </div>
-
+            <h2>使用说明</h2>
+            <p class="help-intro">Fork 本仓库并部署 <code>docs</code> 到 GitHub Pages 后，在本页填好 Token、仓库所有者、仓库名、Release 标签（如 <code>latest</code>），保存即可直接上传/下载，<strong>无需先手动创建 Release</strong>，后端会自动创建。</p>
             <div class="faq-section">
                 <h3>常见问题</h3>
                 <div class="faq-item">
                     <details>
-                        <summary><strong>422 错误 - 创建 Release 失败</strong></summary>
-                        <p>
-                            这是最常见的问题。解决办法：<br>
-                            1. 确保生成 Token 时勾选了完整的 repo 权限<br>
-                            2. 在仓库页面手动创建一个 Release<br>
-                            3. 不要使用不存在的 TAG 名称
-                        </p>
+                        <summary>文件存在哪？</summary>
+                        <p>存在 GitHub Releases，服务器只做中转，不落盘。</p>
                     </details>
                 </div>
                 <div class="faq-item">
                     <details>
-                        <summary>文件存储在哪里？</summary>
-                        <p>文件存储在 GitHub Releases，这是 GitHub 官方的文件分发功能，支持大文件版本管理</p>
+                        <summary>支持多大文件？</summary>
+                        <p>单文件最大 2GB。</p>
                     </details>
                 </div>
                 <div class="faq-item">
                     <details>
-                        <summary>支持多大的文件？</summary>
-                        <p>单个文件最大 2GB，仓库总大小建议不超过 1GB</p>
+                        <summary>Token 安全吗？</summary>
+                        <p>只存在浏览器本地，后端不存。</p>
                     </details>
                 </div>
                 <div class="faq-item">
                     <details>
-                        <summary>安全吗？</summary>
-                        <p>完全安全。Token 只保存在你的浏览器本地，通过后端代理与 GitHub API 通信</p>
-                    </details>
-                </div>
-                <div class="faq-item">
-                    <details>
-                        <summary>可以使用私有仓库吗？</summary>
-                        <p>可以，你的 Token 需要有访问该私有仓库的完整权限</p>
+                        <summary>422 或 403 怎么办？</summary>
+                        <p>422：检查 Token 是否勾选完整 repo 权限。403：若用的是别人的 Pages 地址，需 Fork 后部署自己的 Pages 再填信息使用。</p>
                     </details>
                 </div>
             </div>
