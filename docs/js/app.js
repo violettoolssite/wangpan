@@ -299,7 +299,7 @@ async function uploadFile(file) {
                         body: JSON.stringify({
                             tag_name: config.tag,
                             name: config.tag,
-                            body: 'Created by GitHub Pages 网盘',
+                            body: 'Created by GitHub Pages 云盘',
                             draft: false,
                             prerelease: false
                         })
@@ -309,9 +309,9 @@ async function uploadFile(file) {
                 if (!createResponse.ok) {
                     const errorData = await createResponse.json().catch(() => ({}));
                     if (createResponse.status === 403) {
-                        throw new Error('权限不足：Token 需要 repo 权限才能创建 Release');
+                        throw new Error('权限不足(403): Token 需要 repo 权限才能创建 Release。请重新创建 Token 并勾选完整的 repo 权限');
                     } else if (createResponse.status === 422) {
-                        throw new Error('创建失败：TAG 可能已存在或仓库验证失败，请在 GitHub 仓库页面添加一个 Release');
+                        throw new Error('创建失败(422): 请手动在 GitHub 仓库页面创建一个 Release 后再试');
                     } else if (createResponse.status === 404) {
                         throw new Error('仓库未找到或无权访问');
                     } else {
@@ -437,7 +437,7 @@ function toggleConfig() {
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('初始化 GitHub 网盘...');
+    console.log('初始化 GitHub 云盘...');
     
     loadConfig();
     initDragUpload();
