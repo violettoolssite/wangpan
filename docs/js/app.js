@@ -1,14 +1,14 @@
-// GitHub Pages 版本 - 直接使用 GitHub API
+// GitHub Pages 版本 - 直接上传到 Git 仓库
 
 const GITHUB_API_BASE = 'https://api.github.com';
+const STORAGE_PATH = 'cloud-disk'; // 文件存储路径
 
 // 获取配置
 function getConfig() {
     return {
         token: localStorage.getItem('githubToken') || '',
         owner: localStorage.getItem('repoOwner') || '',
-        repo: localStorage.getItem('repoName') || '',
-        tag: localStorage.getItem('releaseTag') || 'latest'
+        repo: localStorage.getItem('repoName') || ''
     };
 }
 
@@ -17,7 +17,6 @@ function saveConfig() {
     const token = document.getElementById('githubToken')?.value.trim() || '';
     const owner = document.getElementById('repoOwner')?.value.trim() || '';
     const repo = document.getElementById('repoName')?.value.trim() || '';
-    const tag = document.getElementById('releaseTag')?.value.trim() || 'latest';
 
     if (!token || !owner || !repo) {
         showStatus('请填写完整的配置信息', 'error');
@@ -27,7 +26,6 @@ function saveConfig() {
     localStorage.setItem('githubToken', token);
     localStorage.setItem('repoOwner', owner);
     localStorage.setItem('repoName', repo);
-    localStorage.setItem('releaseTag', tag);
 
     showStatus('配置已保存，正在验证...', 'success');
 
@@ -73,12 +71,10 @@ function loadConfig() {
     const tokenInput = document.getElementById('githubToken');
     const ownerInput = document.getElementById('repoOwner');
     const repoInput = document.getElementById('repoName');
-    const tagInput = document.getElementById('releaseTag');
 
     if (tokenInput) tokenInput.value = config.token;
     if (ownerInput) ownerInput.value = config.owner;
     if (repoInput) repoInput.value = config.repo;
-    if (tagInput) tagInput.value = config.tag;
 }
 
 // 显示状态消息
@@ -114,7 +110,7 @@ async function loadFiles() {
     showStatus('加载中...', 'info');
     try {
         const response = await fetch(
-            `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases`,
+            `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/contents/${STORAGE_PATH}`,
             {
                 headers: {
                     'Authorization': `token ${config.token}`,
@@ -124,10 +120,13 @@ async function loadFiles() {
         );
 
         if (!response.ok) {
-            if (response.status === 403) {
+            if (response.status === 404) {
+                // 目录不存在，表示没有文件
+                displayFiles([]);
+                showStatus('加载完成（空仓库）', 'success');
+                return;
+            } else if (response.status === 403) {
                 throw new Error('权限不足，请检查 Token 权限');
-            } else if (response.status === 404) {
-                throw new Error('仓库未找到');
             } else if (response.status === 401) {
                 throw new Error('Token 无效');
             } else {
@@ -135,8 +134,13 @@ async function loadFiles() {
             }
         }
 
-        const releases = await response.json();
-        displayFiles(releases);
+        const files = await response.json();
+        
+        if (!Array.isArray(files)) {
+            throw new Error('无法解析文件列表');
+        }
+
+        displayFiles(files);
         showStatus('加载完成', 'success');
     } catch (error) {
         showStatus('加载失败：' + error.message, 'error');
@@ -144,11 +148,11 @@ async function loadFiles() {
 }
 
 // 显示文件列表
-function displayFiles(releases) {
+function displayFiles(files) {
     const container = document.getElementById('filesList');
     if (!container) return;
 
-    if (!releases || releases.length === 0) {
+    if (!files || files.length === 0) {
         container.innerHTML = '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
         return;
     }
@@ -156,35 +160,30 @@ function displayFiles(releases) {
     const config = getConfig();
     let html = '';
 
-    releases.forEach(release => {
-        if (release.assets && release.assets.length > 0) {
-            html += `<div class="release-section"><h3>${release.tag_name}</h3>`;
-            release.assets.forEach(asset => {
-                html += `
-                    <div class="file-item">
-                        <div class="file-info">
-                            <div class="file-name">${escapeHtml(asset.name)}</div>
-                            <div class="file-meta">
-                                <span class="file-size">${formatFileSize(asset.size)}</span>
-                                <span class="file-downloads">${asset.download_count} 次下载</span>
-                            </div>
-                        </div>
-                        <div class="file-actions">
-                            <button class="btn-download" onclick="downloadFile('${escapeHtml(asset.browser_download_url)}')">
-                                下载
-                            </button>
-                            <button class="btn-delete" onclick="deleteFile('${escapeHtml(config.owner)}', '${escapeHtml(config.repo)}', ${asset.id}, '${escapeHtml(asset.name)}')">
-                                删除
-                            </button>
-                        </div>
+    files.forEach(file => {
+        const size = file.size || 0;
+        html += `
+            <div class="file-item">
+                <div class="file-info">
+                    <div class="file-name">${escapeHtml(file.name)}</div>
+                    <div class="file-meta">
+                        <span class="file-size">${formatFileSize(size)}</span>
+                        <span class="file-date">${new Date(file.updated_at).toLocaleDateString()}</span>
                     </div>
-                `;
-            });
-            html += '</div>';
-        }
+                </div>
+                <div class="file-actions">
+                    <button class="btn-download" onclick="downloadFile('${escapeHtml(file.name)}')">
+                        下载
+                    </button>
+                    <button class="btn-delete" onclick="deleteFile('${escapeHtml(file.name)}')">
+                        删除
+                    </button>
+                </div>
+            </div>
+        `;
     });
 
-    container.innerHTML = html || '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
+    container.innerHTML = html;
 }
 
 // HTML 转义
@@ -195,13 +194,15 @@ function escapeHtml(text) {
 }
 
 // 下载文件
-function downloadFile(url) {
-    window.open(url, '_blank');
+function downloadFile(filename) {
+    const config = getConfig();
+    const downloadUrl = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/main/${STORAGE_PATH}/${encodeURIComponent(filename)}`;
+    window.open(downloadUrl, '_blank');
 }
 
 // 删除文件
-async function deleteFile(owner, repo, assetId, assetName) {
-    if (!confirm(`确定要删除 "${assetName}" 吗？`)) {
+async function deleteFile(filename) {
+    if (!confirm(`确定要删除 "${filename}" 吗？`)) {
         return;
     }
 
@@ -209,10 +210,10 @@ async function deleteFile(owner, repo, assetId, assetName) {
     showStatus('删除中...', 'info');
 
     try {
+        // 首先获取文件的 SHA
         const response = await fetch(
-            `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases/assets/${assetId}`,
+            `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/contents/${STORAGE_PATH}/${encodeURIComponent(filename)}`,
             {
-                method: 'DELETE',
                 headers: {
                     'Authorization': `token ${config.token}`,
                     'Accept': 'application/vnd.github.v3+json'
@@ -221,9 +222,33 @@ async function deleteFile(owner, repo, assetId, assetName) {
         );
 
         if (!response.ok) {
-            if (response.status === 403) {
+            throw new Error('文件不存在或无法访问');
+        }
+
+        const fileData = await response.json();
+        const sha = fileData.sha;
+
+        // 删除文件
+        const deleteResponse = await fetch(
+            `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/contents/${STORAGE_PATH}/${encodeURIComponent(filename)}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `删除文件: ${filename}`,
+                    sha: sha
+                })
+            }
+        );
+
+        if (!deleteResponse.ok) {
+            if (deleteResponse.status === 403) {
                 throw new Error('权限不足，无法删除文件');
-            } else if (response.status === 404) {
+            } else if (deleteResponse.status === 404) {
                 throw new Error('文件不存在');
             } else {
                 throw new Error('删除失败');
@@ -251,21 +276,24 @@ async function uploadFile(file) {
 
     if (progressEl) progressEl.style.display = 'block';
     if (progressFill) progressFill.style.width = '0%';
-    if (progressText) progressText.textContent = '检查 Release...';
+    if (progressText) progressText.textContent = '准备上传...';
 
     try {
         console.log('开始上传文件:', file.name);
-        
-        // 检查或创建 Release
-        let release;
-        let isNewRelease = false;
 
+        // 将文件转为 Base64
+        if (progressText) progressText.textContent = '读取文件...';
+        const fileData = await readFileAsBase64(file);
+        if (progressFill) progressFill.style.width = '30%';
+
+        if (progressText) progressText.textContent = '上传到仓库...';
+        if (progressFill) progressFill.style.width = '50%';
+
+        // 检查文件是否已存在
+        let sha = null;
         try {
-            if (progressText) progressText.textContent = '查找 Release...';
-            console.log('查找 Release:', config.tag);
-            
-            const releaseResponse = await fetch(
-                `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases/tags/${config.tag}`,
+            const checkResponse = await fetch(
+                `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/contents/${STORAGE_PATH}/${encodeURIComponent(file.name)}`,
                 {
                     headers: {
                         'Authorization': `token ${config.token}`,
@@ -274,140 +302,85 @@ async function uploadFile(file) {
                 }
             );
 
-            if (releaseResponse.ok) {
-                release = await releaseResponse.json();
-                if (progressText) progressText.textContent = '找到 Release';
-                console.log('找到现有 Release:', release.id);
-            } else if (releaseResponse.status === 404) {
-                isNewRelease = true;
-                console.log('Release 不存在，需要创建');
-            } else {
-                throw new Error('检查 Release 失败');
+            if (checkResponse.ok) {
+                const existingFile = await checkResponse.json();
+                sha = existingFile.sha;
             }
         } catch (error) {
-            isNewRelease = true;
-            console.log('检查 Release 出错，标记为新建:', error);
+            // 文件不存在，创建新文件
         }
 
-        if (isNewRelease) {
-            if (progressText) progressText.textContent = '创建 Release...';
-            if (progressFill) progressFill.style.width = '20%';
+        // 上传或更新文件
+        const url = `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/contents/${STORAGE_PATH}/${encodeURIComponent(file.name)}`;
+        
+        const bodyData = {
+            message: `上传文件: ${file.name}`,
+            content: fileData
+        };
 
-            console.log('尝试创建 Release，tag:', config.tag);
-
-            try {
-                const createResponse = await fetch(
-                    `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `token ${config.token}`,
-                            'Accept': 'application/vnd.github.v3+json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            tag_name: config.tag,
-                            name: config.tag,
-                            body: 'Created by GitHub Pages 云盘',
-                            draft: false,
-                            prerelease: false
-                        })
-                    }
-                );
-
-                console.log('创建 Release 响应状态:', createResponse.status);
-
-                if (!createResponse.ok) {
-                    const errorData = await createResponse.json().catch(() => ({}));
-                    console.error('创建 Release 失败详细信息:', errorData);
-                    
-                    if (createResponse.status === 403) {
-                        throw new Error('权限不足(403): Token 需要 repo 权限才能创建 Release');
-                    } else if (createResponse.status === 422) {
-                        const errorMsg = errorData.message || '未知错误';
-                        const errors = errorData.errors || [];
-                        console.error('422 错误详情:', errorMsg, errors);
-                        
-                        throw new Error(`创建失败(422): ${errorMsg}. ${errors.length > 0 ? '详情: ' + errors.map(e => e.message).join(', ') : '原因: TAG 可能已存在或仓库验证失败。建议在 GitHub 仓库页面手动创建一个 Release。'}`);
-                    } else if (createResponse.status === 404) {
-                        throw new Error('仓库未找到或无权访问');
-                    } else {
-                        throw new Error(errorData.message || '创建 Release 失败');
-                    }
-                }
-
-                release = await createResponse.json();
-                console.log('Release 创建成功:', release.id);
-            } catch (error) {
-                console.error('创建 Release 失败:', error);
-                throw new Error(error.message);
-            }
+        if (sha) {
+            bodyData.sha = sha;
         }
 
-        if (progressText) progressText.textContent = '准备上传...';
-        if (progressFill) progressFill.style.width = '30%';
-
-        // 上传文件到 Release
-        const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(file.name)}`);
-        console.log('上传 URL:', uploadUrl);
-
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable && progressFill && progressText) {
-                const percent = Math.round((e.loaded / e.total) * 70) + 30;
-                progressFill.style.width = percent + '%';
-                progressText.textContent = percent + '%';
-            }
+        const uploadResponse = await fetch(url, {
+            method: sha ? 'PUT' : 'PUT',
+            headers: {
+                'Authorization': `token ${config.token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(bodyData)
         });
 
-        xhr.addEventListener('load', () => {
-            console.log('上传完成，状态:', xhr.status);
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressText) progressText.textContent = '上传完成';
+
+        if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json().catch(() => ({}));
+            console.error('上传失败:', errorData);
             
-            if (xhr.status === 200 || xhr.status === 201 || xhr.status === 202) {
-                if (progressFill) progressFill.style.width = '100%';
-                if (progressText) progressText.textContent = '上传完成';
-                showStatus('上传成功！', 'success');
-                loadFiles();
-                setTimeout(() => { 
-                    if (progressEl) progressEl.style.display = 'none'; 
-                }, 2000);
+            if (uploadResponse.status === 403) {
+                throw new Error('权限不足，请检查 Token 权限');
+            } else if (uploadResponse.status === 413) {
+                throw new Error('文件太大，GitHub 限制为 100MB');
+            } else if (uploadResponse.status === 422) {
+                throw new Error(errorData.message || '上传失败，文件名冲突或格式不支持');
             } else {
-                console.error('上传失败，状态:', xhr.status);
-                let errorMsg = '上传失败';
-                if (xhr.status === 413) {
-                    errorMsg = '文件太大，超过 GitHub 限制（100MB）';
-                } else if (xhr.status === 422) {
-                    errorMsg = '文件名冲突或格式不支持，尝试更换文件名';
-                }
-                showStatus(errorMsg + ` (${xhr.status})`, 'error');
-                if (progressEl) progressEl.style.display = 'none';
+                throw new Error(errorData.message || `上传失败 (${uploadResponse.status})`);
             }
-        });
+        }
 
-        xhr.addEventListener('error', () => {
-            console.error('上传网络错误');
-            showStatus('网络错误，请检查连接', 'error');
-            if (progressEl) progressEl.style.display = 'none';
-        });
+        const result = await uploadResponse.json();
+        console.log('上传成功:', result.content.name);
 
-        xhr.addEventListener('timeout', () => {
-            console.error('上传超时');
-            showStatus('上传超时，请重试', 'error');
-            if (progressEl) progressEl.style.display = 'none';
-        });
-
-        xhr.open('POST', uploadUrl, true);
-        xhr.timeout = 300000; // 5分钟超时
-        xhr.setRequestHeader('Authorization', `token ${config.token}`);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-
-        xhr.send(file);
-
+        showStatus('上传成功！', 'success');
+        loadFiles();
+        setTimeout(() => { 
+            if (progressEl) progressEl.style.display = 'none'; 
+        }, 2000);
     } catch (error) {
         console.error('上传过程出错:', error);
         showStatus('上传失败：' + error.message, 'error');
         if (progressEl) progressEl.style.display = 'none';
     }
+}
+
+// 读取文件为 Base64
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = () => {
+            const result = reader.result.split(',')[1]; // 移除 data URL 前缀
+            resolve(result);
+        };
+        
+        reader.onerror = (error) => {
+            reject(new Error('读取文件失败'));
+        };
+        
+        reader.readAsDataURL(file);
+    });
 }
 
 // 初始化拖拽上传

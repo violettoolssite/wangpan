@@ -10,9 +10,9 @@
     <div class="container">
         <header>
             <h1>GitHub 网盘</h1>
-            <p class="subtitle">基于 GitHub Releases 的文件存储系统</p>
+            <p class="subtitle">基于 Git 仓库的文件存储系统</p>
             <div class="badge">
-                <span class="badge-text">纯前端 · 无服务器 · GitHub Pages 托管</span>
+                <span class="badge-text">纯前端 · 无服务器 · 直接上传到仓库</span>
             </div>
             <button id="toggleConfig" class="btn-config-toggle" onclick="console.log('切换按钮被点击');">配置</button>
         </header>
@@ -43,11 +43,6 @@
                         <small>你创建的仓库名</small>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Release 标签 (Tag)</label>
-                    <input type="text" id="releaseTag" placeholder="latest" value="latest">
-                    <small>不同标签可用于组织不同版本的文件</small>
-                </div>
                 <div class="button-group">
                     <button type="button" id="connectButton" class="btn-primary" onclick="console.log('连接仓库按钮被点击'); saveConfig();">连接仓库</button>
                 </div>
@@ -56,8 +51,8 @@
                 <p>重要提示：</p>
                 <ul>
                     <li>Token 必须有完整的 repo 权限</li>
-                    <li>请确保你能访问该仓库</li>
-                    <li>如果仓库是私有的，Token 必须有访问权限</li>
+                    <li>文件将直接存储在 Git 仓库的 cloud-disk 目录</li>
+                    <li>支持最大 100MB 单文件</li>
                     <li>Token 只保存在浏览器本地，非常安全</li>
                 </ul>
             </div>
@@ -89,7 +84,7 @@
                 <p id="progressText">0%</p>
             </div>
             <div class="info-note">
-                <span>支持最大 100MB 文件，实际存储在 GitHub Releases</span>
+                <span>支持最大 100MB 文件，文件存储在 Git 仓库的 cloud-disk 目录</span>
             </div>
         </section>
 
@@ -121,7 +116,7 @@
                                 GitHub Settings → Tokens
                             </a>
                             <br>
-                            必须勾选 repo 权限（包括 repo:status, repo_deployment, public_repo, repo:invite, security_events）
+                            必须勾选 repo 权限
                         </p>
                     </div>
                 </div>
@@ -147,59 +142,29 @@
             </div>
 
             <div class="faq-section">
-                <h3>常见错误解决</h3>
-                <div class="faq-item">
-                    <details>
-                        <summary><strong>403 Forbidden - 创建 Release 失败</strong></summary>
-                        <p>
-                            这是最常见的问题。解决办法：<br>
-                            1. 确保生成 Token 时勾选了完整的 repo 权限<br>
-                            2. 如果仓库是私有的，确保你有写权限<br>
-                            3. 尝试在 GitHub 仓库页面手动创建一个 Release
-                        </p>
-                    </details>
-                </div>
-                <div class="faq-item">
-                    <details>
-                        <summary><strong>404 Not Found - 仓库未找到</strong></summary>
-                        <p>
-                            检查以下几点：<br>
-                            1. 仓库所有者（用户名）是否正确<br>
-                            2. 仓库名拼写是否正确<br>
-                            3. 如果是私有仓库，请确保 Token 可以访问
-                        </p>
-                    </details>
-                </div>
-                <div class="faq-item">
-                    <details>
-                        <summary><strong>文件能上传但无法删除</strong></summary>
-                        <p>
-                            删除权限可能不足，请检查 Token 是否有完整的 repo 权限
-                        </p>
-                    </details>
-                </div>
+                <h3>常见问题</h3>
                 <div class="faq-item">
                     <details>
                         <summary>文件存储在哪里？</summary>
-                        <p>文件存储在 GitHub Releases，这是 GitHub 官方的文件分发功能</p>
+                        <p>文件存储在 Git 仓库的 cloud-disk 目录，与其他代码一起管理</p>
                     </details>
                 </div>
                 <div class="faq-item">
                     <details>
                         <summary>有存储限制吗？</summary>
-                        <p>单个文件最大约 100MB（GitHub API 限制），仓库总大小建议不超过 1GB</p>
+                        <p>单个文件最大 100MB，仓库总大小建议不超过 1GB</p>
                     </details>
                 </div>
                 <div class="faq-item">
                     <details>
                         <summary>安全吗？</summary>
-                        <p>完全安全。Token 只保存在你的浏览器本地，直接调用 GitHub API，不经过任何中间服务器</p>
+                        <p>完全安全。Token 只保存在你的浏览器本地，直接调用 GitHub API</p>
                     </details>
                 </div>
                 <div class="faq-item">
                     <details>
                         <summary>可以使用私有仓库吗？</summary>
-                        <p>可以，你的 Token 需要有访问该私有仓库的完整权限</p>
+                        <p>可以，你的 Token 需要有访问该私有仓库的权限</p>
                     </details>
                 </div>
             </div>
@@ -207,7 +172,7 @@
 
         <footer>
             <p>
-                纯前端应用 · 基于 GitHub Releases API
+                纯前端应用 · 基于 GitHub Git API
                 <br>
                 <a href="https://github.com/openwangpan/wangpan" target="_blank">开源代码</a>
                 ·
