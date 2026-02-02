@@ -19,6 +19,17 @@ app.use(cors({
 
 app.use(express.json());
 
+// 请求日志：每个请求记录 method path IP，响应完成后记录 status 与耗时
+app.use((req, res, next) => {
+    const start = Date.now();
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+    res.on('finish', () => {
+        const ms = Date.now() - start;
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl || req.url} ${res.statusCode} ${ms}ms ${ip}`);
+    });
+    next();
+});
+
 // 内存存储multer配置 - 不保存到磁盘
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -29,10 +40,11 @@ const upload = multer({
 
 // 错误处理中间件
 const handleError = (res, error, statusCode = 500) => {
-    console.error('Error:', error);
+    const msg = error.message || 'Internal server error';
+    console.error(`[${new Date().toISOString()}] ERROR ${statusCode} ${msg}`, error.stack || '');
     res.status(statusCode).json({
         success: false,
-        error: error.message || 'Internal server error'
+        error: msg
     });
 };
 
@@ -201,13 +213,14 @@ app.get('/api/delete-asset', validateToken, async (req, res) => {
     }
 });
 
-// 下载文件
+// 下载文件（支持 Authorization 头或 query 参数 token，便于前端直接打开链接避免 CORS）
 app.get('/api/download/:owner/:repo/:tag/:filename', async (req, res) => {
     try {
         const { owner, repo, tag, filename } = req.params;
-        const token = req.headers.authorization?.substring(7);
+        let token = req.headers.authorization?.replace(/^Bearer\s+/i, '').trim();
+        if (!token && req.query.token) token = String(req.query.token).trim();
 
-        // 如果没有token，直接重定向到GitHub
+        // 如果没有token，直接重定向到GitHub（公开仓库可用）
         if (!token) {
             const downloadUrl = `https://github.com/${owner}/${repo}/releases/download/${tag}/${filename}`;
             return res.redirect(downloadUrl);

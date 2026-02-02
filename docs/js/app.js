@@ -203,8 +203,8 @@ function attrEsc(str) {
         .replace(/>/g, '&gt;');
 }
 
-// 经服务器下载（先请求 /api/download，再跳转到返回的地址）
-async function downloadFileThroughServer(btn) {
+// 经服务器下载：直接打开带 token 的链接，由服务器 302 到 GitHub，避免 fetch 跨域导致 status 0
+function downloadFileThroughServer(btn) {
     const owner = btn.getAttribute('data-owner');
     const repo = btn.getAttribute('data-repo');
     const tag = btn.getAttribute('data-tag');
@@ -218,27 +218,10 @@ async function downloadFileThroughServer(btn) {
         showStatus('请先配置 Token', 'error');
         return;
     }
-    const url = `${API_BASE_URL}/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
-    try {
-        const res = await fetch(url, { redirect: 'manual', headers: { 'Authorization': `Bearer ${config.token}` } });
-        if (res.status === 302) {
-            const loc = res.headers.get('Location');
-            if (loc) {
-                window.open(loc, '_blank');
-                showStatus('已打开下载，若未弹出请检查浏览器是否拦截', 'success');
-            } else {
-                showStatus('获取下载链接失败（请确认后端已设置 CORS exposedHeaders: Location）', 'error');
-            }
-        } else if (res.status === 200) {
-            window.open(url, '_blank');
-            showStatus('已打开下载', 'success');
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showStatus(err.error || '下载失败 ' + res.status, 'error');
-        }
-    } catch (e) {
-        showStatus('下载失败：' + (e.message || '网络错误'), 'error');
-    }
+    const base = `${API_BASE_URL}/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
+    const url = base + '?token=' + encodeURIComponent(config.token);
+    window.open(url, '_blank');
+    showStatus('已打开下载，若未弹出请检查浏览器是否拦截', 'success');
 }
 
 // 下载文件（直接打开 URL，保留用于兼容）
