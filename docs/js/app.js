@@ -223,13 +223,18 @@ async function downloadFileThroughServer(btn) {
         const res = await fetch(url, { redirect: 'manual', headers: { 'Authorization': `Bearer ${config.token}` } });
         if (res.status === 302) {
             const loc = res.headers.get('Location');
-            if (loc) window.open(loc, '_blank');
-            else showStatus('获取下载链接失败', 'error');
+            if (loc) {
+                window.open(loc, '_blank');
+                showStatus('已打开下载，若未弹出请检查浏览器是否拦截', 'success');
+            } else {
+                showStatus('获取下载链接失败（请确认后端已设置 CORS exposedHeaders: Location）', 'error');
+            }
         } else if (res.status === 200) {
             window.open(url, '_blank');
+            showStatus('已打开下载', 'success');
         } else {
             const err = await res.json().catch(() => ({}));
-            showStatus(err.error || '下载失败', 'error');
+            showStatus(err.error || '下载失败 ' + res.status, 'error');
         }
     } catch (e) {
         showStatus('下载失败：' + (e.message || '网络错误'), 'error');

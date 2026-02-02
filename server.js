@@ -8,11 +8,12 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// CORS配置 - 允许所有来源（公共服务）
+// CORS配置 - 允许所有来源（公共服务）；暴露 Location 以便前端读取 302 重定向地址
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
+    exposedHeaders: ['Location'],
     credentials: false
 }));
 
