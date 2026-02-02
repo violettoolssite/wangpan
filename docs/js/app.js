@@ -1,6 +1,15 @@
 // GitHub 网盘 - 支持 GitHub 登录 + Gist 配置同步（换设备只需登录）
 
-const API_BASE_URL = (typeof window !== 'undefined' && window.WANGPAN_API_BASE) ? window.WANGPAN_API_BASE.replace(/\/$/, '') : (typeof window !== 'undefined' ? window.location.origin : '');
+function getApiBaseUrl() {
+    if (typeof window === 'undefined') return '';
+    if (window.WANGPAN_API_BASE) return String(window.WANGPAN_API_BASE).replace(/\/$/, '');
+    // 前端在 GitHub Pages 时使用公共后端，避免 /api 指向 github.io 导致 404
+    if (window.location.hostname === 'openwangpan.github.io' || window.location.hostname.endsWith('.github.io')) {
+        return 'https://wangpan.cfspider.com';
+    }
+    return window.location.origin;
+}
+const API_BASE_URL = getApiBaseUrl();
 
 let isLoggedIn = false;
 

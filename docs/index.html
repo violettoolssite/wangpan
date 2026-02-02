@@ -13,11 +13,11 @@
             <h1>GitHub 网盘</h1>
             <p class="subtitle">基于 GitHub Releases 的大文件存储系统</p>
             <div class="badge">
-                <span class="badge-text">支持大文件 · 最大 2GB · 后端代理</span>
+                <span class="badge-text">无需服务器 · 用 GitHub 登录 · 换设备即同步 · 单文件最大 2GB</span>
             </div>
             <!-- 登录态：未登录显示「用 GitHub 登录」，已登录显示用户与登出 -->
             <div id="authBar" class="auth-bar">
-                <a id="loginLink" href="#" class="btn-login">用 GitHub 登录</a>
+                <a id="loginLink" href="https://wangpan.cfspider.com/api/auth/github" class="btn-login">用 GitHub 登录</a>
                 <span id="loggedInInfo" class="logged-in-info" style="display: none;">
                     <span>已登录：<strong id="userLogin"></strong></span>
                     <button type="button" id="saveConfigToAccount" class="btn-secondary">保存配置到账号</button>
@@ -161,6 +161,16 @@
         </footer>
     </div>
 
+    <script>
+    (function(){
+        var h = window.location.hostname;
+        if (h === 'openwangpan.github.io' || h.endsWith('.github.io')) {
+            window.WANGPAN_API_BASE = 'https://wangpan.cfspider.com';
+            var link = document.getElementById('loginLink');
+            if (link) link.href = 'https://wangpan.cfspider.com/api/auth/github';
+        }
+    })();
+    </script>
     <script src="js/app.js?v=20260202"></script>
 </body>
 </html>
