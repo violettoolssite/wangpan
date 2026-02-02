@@ -14,7 +14,7 @@
             <div class="badge">
                 <span class="badge-text">纯前端 · 无服务器 · GitHub Pages 托管</span>
             </div>
-            <button class="btn-config-toggle" id="toggleConfig">配置</button>
+            <button id="toggleConfig" class="btn-config-toggle" onclick="console.log('切换按钮被点击');">配置</button>
         </header>
 
         <!-- 配置面板 -->
@@ -49,7 +49,7 @@
                     <small>不同标签可用于组织不同版本的文件</small>
                 </div>
                 <div class="button-group">
-                    <button type="button" id="connectButton" class="btn-primary">连接仓库</button>
+                    <button type="button" id="connectButton" class="btn-primary" onclick="console.log('连接仓库按钮被点击'); saveConfig();">连接仓库</button>
                 </div>
             </div>
             <div class="info-box">

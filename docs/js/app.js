@@ -60,10 +60,10 @@ async function verifyConfig(token, owner, repo) {
             }
         }
 
-        showStatus('✅ 连接成功！', 'success');
+        showStatus('连接成功！', 'success');
         loadFiles();
     } catch (error) {
-        showStatus('❌ 配置验证失败：' + error.message, 'error');
+        showStatus('配置验证失败：' + error.message, 'error');
     }
 }
 
@@ -111,7 +111,7 @@ async function loadFiles() {
         return;
     }
 
-    showStatus('📂 加载中...', 'info');
+    showStatus('加载中...', 'info');
     try {
         const response = await fetch(
             `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases`,
@@ -137,9 +137,9 @@ async function loadFiles() {
 
         const releases = await response.json();
         displayFiles(releases);
-        showStatus('✅ 加载完成', 'success');
+        showStatus('加载完成', 'success');
     } catch (error) {
-        showStatus('❌ 加载失败：' + error.message, 'error');
+        showStatus('加载失败：' + error.message, 'error');
     }
 }
 
@@ -149,7 +149,7 @@ function displayFiles(releases) {
     if (!container) return;
 
     if (!releases || releases.length === 0) {
-        container.innerHTML = '<p class="empty-state">📁 暂无文件，上传一个文件试试吧！</p>';
+        container.innerHTML = '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
         return;
     }
 
@@ -171,10 +171,10 @@ function displayFiles(releases) {
                         </div>
                         <div class="file-actions">
                             <button class="btn-download" onclick="downloadFile('${escapeHtml(asset.browser_download_url)}')">
-                                📥 下载
+                                下载
                             </button>
                             <button class="btn-delete" onclick="deleteFile('${escapeHtml(config.owner)}', '${escapeHtml(config.repo)}', ${asset.id}, '${escapeHtml(asset.name)}')">
-                                🗑️ 删除
+                                删除
                             </button>
                         </div>
                     </div>
@@ -184,7 +184,7 @@ function displayFiles(releases) {
         }
     });
 
-    container.innerHTML = html || '<p class="empty-state">📁 暂无文件，上传一个文件试试吧！</p>';
+    container.innerHTML = html || '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
 }
 
 // HTML 转义
@@ -206,7 +206,7 @@ async function deleteFile(owner, repo, assetId, assetName) {
     }
 
     const config = getConfig();
-    showStatus('🗑️ 删除中...', 'info');
+    showStatus('删除中...', 'info');
 
     try {
         const response = await fetch(
@@ -230,10 +230,10 @@ async function deleteFile(owner, repo, assetId, assetName) {
             }
         }
 
-        showStatus('✅ 删除成功', 'success');
+        showStatus('删除成功', 'success');
         loadFiles();
     } catch (error) {
-        showStatus('❌ 删除失败：' + error.message, 'error');
+        showStatus('删除失败：' + error.message, 'error');
     }
 }
 
@@ -259,7 +259,7 @@ async function uploadFile(file) {
         let isNewRelease = false;
 
         try {
-            if (progressText) progressText.textContent = '🔍 查找 Release...';
+            if (progressText) progressText.textContent = '查找 Release...';
             const releaseResponse = await fetch(
                 `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases/tags/${config.tag}`,
                 {
@@ -272,7 +272,7 @@ async function uploadFile(file) {
 
             if (releaseResponse.ok) {
                 release = await releaseResponse.json();
-                if (progressText) progressText.textContent = '✅ 找到 Release';
+                if (progressText) progressText.textContent = '找到 Release';
             } else if (releaseResponse.status === 404) {
                 isNewRelease = true;
             } else {
@@ -283,7 +283,7 @@ async function uploadFile(file) {
         }
 
         if (isNewRelease) {
-            if (progressText) progressText.textContent = '🏷️ 创建 Release...';
+            if (progressText) progressText.textContent = '创建 Release...';
             if (progressFill) progressFill.style.width = '20%';
 
             try {
@@ -325,7 +325,7 @@ async function uploadFile(file) {
             }
         }
 
-        if (progressText) progressText.textContent = '📤 准备上传...';
+        if (progressText) progressText.textContent = '准备上传...';
         if (progressFill) progressFill.style.width = '30%';
 
         // 上传文件到 Release
@@ -343,8 +343,8 @@ async function uploadFile(file) {
         xhr.addEventListener('load', () => {
             if (xhr.status === 200 || xhr.status === 201 || xhr.status === 202) {
                 if (progressFill) progressFill.style.width = '100%';
-                if (progressText) progressText.textContent = '✅ 上传完成';
-                showStatus('✅ 上传成功！', 'success');
+                if (progressText) progressText.textContent = '上传完成';
+                showStatus('上传成功！', 'success');
                 loadFiles();
                 setTimeout(() => { 
                     if (progressEl) progressEl.style.display = 'none'; 
@@ -356,18 +356,18 @@ async function uploadFile(file) {
                 } else if (xhr.status === 422) {
                     errorMsg = '文件名冲突或格式不支持';
                 }
-                showStatus('❌ ' + errorMsg + ` (${xhr.status})`, 'error');
+                showStatus(errorMsg + ` (${xhr.status})`, 'error');
                 if (progressEl) progressEl.style.display = 'none';
             }
         });
 
         xhr.addEventListener('error', () => {
-            showStatus('❌ 网络错误，请检查连接', 'error');
+            showStatus('网络错误，请检查连接', 'error');
             if (progressEl) progressEl.style.display = 'none';
         });
 
         xhr.addEventListener('timeout', () => {
-            showStatus('❌ 上传超时，请重试', 'error');
+            showStatus('上传超时，请重试', 'error');
             if (progressEl) progressEl.style.display = 'none';
         });
 
@@ -379,7 +379,7 @@ async function uploadFile(file) {
         xhr.send(file);
 
     } catch (error) {
-        showStatus('❌ 上传失败：' + error.message, 'error');
+        showStatus('上传失败：' + error.message, 'error');
         if (progressEl) progressEl.style.display = 'none';
     }
 }
@@ -397,7 +397,7 @@ function initDragUpload() {
         if (e.target.files.length > 0) {
             const file = e.target.files[0];
             if (file.size > 100 * 1024 * 1024) { // 100MB
-                showStatus('❌ 文件大小超过 100MB 限制', 'error');
+                showStatus('文件大小超过 100MB 限制', 'error');
                 return;
             }
             uploadFile(file);
@@ -419,7 +419,7 @@ function initDragUpload() {
         if (e.dataTransfer.files.length > 0) {
             const file = e.dataTransfer.files[0];
             if (file.size > 100 * 1024 * 1024) { // 100MB
-                showStatus('❌ 文件大小超过 100MB 限制', 'error');
+                showStatus('文件大小超过 100MB 限制', 'error');
                 return;
             }
             uploadFile(file);
@@ -437,26 +437,45 @@ function toggleConfig() {
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('初始化 GitHub 网盘...');
+    
     loadConfig();
     initDragUpload();
 
     const config = getConfig();
     if (config.token && config.owner && config.repo) {
-        // 自动验证配置
+        console.log('找到已保存配置，自动验证...');
         verifyConfig(config.token, config.owner, config.repo);
     } else {
-        // 第一次使用时显示配置面板
+        console.log('首次使用，显示配置面板');
         const panel = document.getElementById('configPanel');
         if (panel) panel.style.display = 'block';
     }
 
-    // 绑定按钮事件（备用）
+    // 绑定按钮事件
     const connectButton = document.getElementById('connectButton');
+    console.log('连接按钮元素:', connectButton);
+    
     if (connectButton) {
         connectButton.addEventListener('click', function(e) {
+            console.log('点击连接按钮');
             e.preventDefault();
             e.stopPropagation();
             saveConfig();
         });
+        console.log('已绑定连接按钮事件');
+    } else {
+        console.error('未找到连接按钮');
+    }
+    
+    // 绑定配置切换按钮
+    const toggleButton = document.getElementById('toggleConfig');
+    if (toggleButton) {
+        toggleButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleConfig();
+        });
     }
 });
+
+console.log('JavaScript 文件加载完成');
