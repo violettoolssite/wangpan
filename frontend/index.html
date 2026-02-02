@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Releases 网盘</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GitHub Releases 网盘</h1>
+            <p class="subtitle">基于 GitHub Releases 的文件存储服务</p>
+            <div class="public-service-badge">公共中转服务: wangpan.cfspider.com</div>
+        </header>
+
+        <section class="config-panel">
+            <h2>GitHub 配置</h2>
+            <div class="form-group">
+                <label>GitHub Token</label>
+                <input type="password" id="githubToken" placeholder="ghp_xxxxxxxx">
+                <small>需要 repo 权限的 Personal Access Token</small>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>仓库所有者 (Owner)</label>
+                    <input type="text" id="repoOwner" placeholder="username">
+                </div>
+                <div class="form-group">
+                    <label>仓库名 (Repo)</label>
+                    <input type="text" id="repoName" placeholder="my-files">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Release 标签 (Tag)</label>
+                <input type="text" id="releaseTag" placeholder="latest" value="latest">
+            </div>
+            <button onclick="saveConfig()" class="btn-primary">保存配置</button>
+        </section>
+
+        <section class="upload-section">
+            <h2>文件上传</h2>
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <svg class="upload-icon" viewBox="0 0 24 24">
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                    </svg>
+                    <p>拖拽文件到此处 或 <span class="clickable">点击选择</span></p>
+                    <input type="file" id="fileInput" style="display: none;" multiple>
+                </div>
+            </div>
+            <div id="uploadProgress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressText">0%</p>
+            </div>
+        </section>
+
+        <section class="files-section">
+            <h2>文件列表</h2>
+            <div class="refresh-bar">
+                <button onclick="loadFiles()" class="btn-secondary">刷新列表</button>
+                <span id="statusText"></span>
+            </div>
+            <div id="filesList" class="files-list">
+                <p class="empty-state">暂无文件，请先配置 GitHub 信息并刷新</p>
+            </div>
+        </section>
+
+        <section class="help-section">
+            <h2>使用说明</h2>
+            <div class="help-content">
+                <h3>1. 创建 GitHub 仓库</h3>
+                <p>在 GitHub 创建一个新的仓库（public 或 private 都可以），用于存储你的文件。</p>
+                
+                <h3>2. 生成 GitHub Token</h3>
+                <p>
+                    访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings  Tokens</a> 
+                    生成 Personal Access Token，确保勾选 <strong>repo</strong> 权限。
+                </p>
+                
+                <h3>3. 配置并使用</h3>
+                <p>在本页面输入你的 GitHub Token 和仓库信息，即可开始上传/下载文件。</p>
+
+                <h3>关于此服务</h3>
+                <p>
+                    这是一个<strong>公共服务</strong>，所有用户都可以使用 <code>wangpan.cfspider.com</code> 作为中转服务器。
+                    你的文件实际存储在 GitHub Releases，服务器不保存任何文件或凭证。
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
