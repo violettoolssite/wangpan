@@ -56,6 +56,34 @@ const createOctokit = (token) => {
     });
 };
 
+// 受保护仓库：仅允许仓库所有者使用，其他用户需 Fork 后使用自己的仓库
+const RESTRICT_OWNER = (process.env.RESTRICT_OWNER || '').trim();
+const RESTRICT_REPO = (process.env.RESTRICT_REPO || '').trim();
+const tokenLoginCache = new Map(); // token 前几位 -> { login, expires }
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function getTokenLogin(token) {
+    const key = token ? token.slice(0, 12) : '';
+    const cached = tokenLoginCache.get(key);
+    if (cached && cached.expires > Date.now()) return cached.login;
+    const octokit = createOctokit(token);
+    const { data } = await octokit.rest.users.getAuthenticated();
+    const login = (data && data.login) || '';
+    tokenLoginCache.set(key, { login, expires: Date.now() + CACHE_TTL_MS });
+    return login;
+}
+
+async function checkRestrictedRepo(owner, repo, token) {
+    if (!RESTRICT_OWNER || !RESTRICT_REPO) return { forbidden: false };
+    if (owner !== RESTRICT_OWNER || repo !== RESTRICT_REPO) return { forbidden: false };
+    const login = await getTokenLogin(token);
+    if (login === RESTRICT_OWNER) return { forbidden: false };
+    return {
+        forbidden: true,
+        message: '此仓库仅限仓库所有者使用。其他用户请 Fork 本项目后使用自己的仓库。'
+    };
+}
+
 // 上传文件到GitHub Releases
 app.post('/api/upload', validateToken, upload.single('file'), async (req, res) => {
     try {
@@ -73,6 +101,11 @@ app.post('/api/upload', validateToken, upload.single('file'), async (req, res) =
 
         if (!owner || !repo) {
             return handleError(res, new Error('Missing owner or repo'), 400);
+        }
+
+        const restricted = await checkRestrictedRepo(owner, repo, token);
+        if (restricted.forbidden) {
+            return handleError(res, new Error(restricted.message), 403);
         }
 
         const octokit = createOctokit(token);
@@ -143,6 +176,11 @@ app.get('/api/delete-asset', validateToken, async (req, res) => {
             return handleError(res, new Error('Missing required parameters: owner, repo, assetId'), 400);
         }
 
+        const restricted = await checkRestrictedRepo(owner, repo, token);
+        if (restricted.forbidden) {
+            return handleError(res, new Error(restricted.message), 403);
+        }
+
         const octokit = createOctokit(token);
 
         // 删除资产
@@ -172,6 +210,11 @@ app.get('/api/download/:owner/:repo/:tag/:filename', async (req, res) => {
         if (!token) {
             const downloadUrl = `https://github.com/${owner}/${repo}/releases/download/${tag}/${filename}`;
             return res.redirect(downloadUrl);
+        }
+
+        const restricted = await checkRestrictedRepo(owner, repo, token);
+        if (restricted.forbidden) {
+            return handleError(res, new Error(restricted.message), 403);
         }
 
         const octokit = createOctokit(token);
@@ -205,6 +248,11 @@ app.get('/api/list/:owner/:repo', validateToken, async (req, res) => {
     try {
         const { owner, repo } = req.params;
         const token = req.token;
+
+        const restricted = await checkRestrictedRepo(owner, repo, token);
+        if (restricted.forbidden) {
+            return handleError(res, new Error(restricted.message), 403);
+        }
 
         const octokit = createOctokit(token);
 
