@@ -26,19 +26,22 @@
                 <label>GitHub Token (Personal Access Token)</label>
                 <input type="password" id="githubToken" placeholder="ghp_xxxxxxxx">
                 <small>
-                    <a href="https://github.com/settings/tokens" target="_blank">
-                        点击创建 Token → 需要 <code>repo</code> 权限
+                    <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
+                        点击创建 Token → 勾选 <code>repo</code> 权限
                     </a>
+                    <span class="warning-text">⚠️ 必须勾选 repo 权限！</span>
                 </small>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>仓库所有者 (Owner)</label>
                     <input type="text" id="repoOwner" placeholder="username">
+                    <small>你的 GitHub 用户名</small>
                 </div>
                 <div class="form-group">
                     <label>仓库名 (Repo)</label>
                     <input type="text" id="repoName" placeholder="my-files">
+                    <small>你创建的仓库名</small>
                 </div>
             </div>
             <div class="form-group">
@@ -48,7 +51,21 @@
             </div>
             <button onclick="saveConfig()" class="btn-primary">🔗 连接仓库</button>
             <div class="info-box">
-                <p>💡 <strong>提示：</strong>你的 Token 和数据只保存在浏览器本地，不会发送到任何服务器。</p>
+                <p>💡 <strong>重要提示：</strong></p>
+                <ul>
+                    <li>Token 必须有完整的 <code>repo</code> 权限</li>
+                    <li>请确保你能访问该仓库</li>
+                    <li>如果仓库是私有的，Token 必须有访问权限</li>
+                    <li>Token 只保存在浏览器本地，非常安全</li>
+                </ul>
+            </div>
+            <div class="troubleshooting-box">
+                <p>🔧 <strong>遇到问题？</strong></p>
+                <ul>
+                    <li><strong>403 Forbidden</strong>: Token 权限不足，请重新创建并勾选 <code>repo</code></li>
+                    <li><strong>404 Not Found</strong>: 检查仓库名和用户名是否正确</li>
+                    <li><strong>401 Unauthorized</strong>: Token 无效，请重新生成</li>
+                </ul>
             </div>
         </section>
 
@@ -98,20 +115,26 @@
                 <div class="help-step">
                     <div class="step-number">1</div>
                     <div class="step-content">
-                        <h3>创建 GitHub 仓库</h3>
-                        <p>在你的 GitHub 创建一个新仓库（public 或 private 都可以）</p>
-                    </div>
-                </div>
-                <div class="help-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>生成 Personal Access Token</h3>
+                        <h3>创建 GitHub Token（重要）</h3>
                         <p>
                             访问
                             <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
                                 GitHub Settings → Tokens
                             </a>
-                            生成 Token，勾选 <code>repo</code> 权限
+                            <br>
+                            ⚠️ <strong>必须勾选</strong> <code>repo</code> 权限（包括 repo:status, repo_deployment, public_repo, repo:invite, security_events）
+                        </p>
+                    </div>
+                </div>
+                <div class="help-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>创建存储仓库</h3>
+                        <p>
+                            在 GitHub 创建一个新仓库：
+                            <a href="https://github.com/new" target="_blank">https://github.com/new</a>
+                            <br>
+                            可以是 public 或 private，记录下仓库名
                         </p>
                     </div>
                 </div>
@@ -119,13 +142,43 @@
                     <div class="step-number">3</div>
                     <div class="step-content">
                         <h3>连接并使用</h3>
-                        <p>填写 Token 和仓库信息，开始上传文件</p>
+                        <p>填写 Token 和仓库信息，点击"连接仓库"，开始上传文件</p>
                     </div>
                 </div>
             </div>
 
             <div class="faq-section">
-                <h3>常见问题</h3>
+                <h3>常见错误解决</h3>
+                <div class="faq-item">
+                    <details>
+                        <summary><strong>403 Forbidden - 创建 Release 失败</strong></summary>
+                        <p>
+                            这是最常见的问题。解决办法：<br>
+                            1. 确保生成 Token 时勾选了完整的 <code>repo</code> 权限<br>
+                            2. 如果仓库是私有的，确保你有写权限<br>
+                            3. 尝试在 GitHub 仓库页面手动创建一个 Release
+                        </p>
+                    </details>
+                </div>
+                <div class="faq-item">
+                    <details>
+                        <summary><strong>404 Not Found - 仓库未找到</strong></summary>
+                        <p>
+                            检查以下几点：<br>
+                            1. 仓库所有者（用户名）是否正确<br>
+                            2. 仓库名拼写是否正确<br>
+                            3. 如果是私有仓库，请确保 Token 可以访问
+                        </p>
+                    </details>
+                </div>
+                <div class="faq-item">
+                    <details>
+                        <summary><strong>文件能上传但无法删除</strong></summary>
+                        <p>
+                            删除权限可能不足，请检查 Token 是否有完整的 <code>repo</code> 权限
+                        </p>
+                    </details>
+                </div>
                 <div class="faq-item">
                     <details>
                         <summary>文件存储在哪里？</summary>
@@ -147,7 +200,7 @@
                 <div class="faq-item">
                     <details>
                         <summary>可以使用私有仓库吗？</summary>
-                        <p>可以，你的 Token 具有完整的仓库访问权限</p>
+                        <p>可以，你的 Token 需要有访问该私有仓库的完整权限</p>
                     </details>
                 </div>
             </div>
@@ -159,7 +212,7 @@
                 <br>
                 <a href="https://github.com/openwangpan/wangpan" target="_blank">开源代码</a>
                 ·
-                <a href="https://github.com/settings/tokens" target="_blank">获取 Token</a>
+                <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">获取 Token</a>
             </p>
         </footer>
     </div>

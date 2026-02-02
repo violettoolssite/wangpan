@@ -29,8 +29,42 @@ function saveConfig() {
     localStorage.setItem('repoName', repo);
     localStorage.setItem('releaseTag', tag);
 
-    showStatus('配置已保存', 'success');
-    loadFiles();
+    showStatus('配置已保存，正在验证...', 'success');
+
+    // 验证配置
+    verifyConfig(token, owner, repo);
+}
+
+// 验证配置
+async function verifyConfig(token, owner, repo) {
+    try {
+        const response = await fetch(
+            `${GITHUB_API_BASE}/repos/${owner}/${repo}`,
+            {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('仓库未找到，请检查仓库所有者和仓库名是否正确');
+            } else if (response.status === 403) {
+                throw new Error('Token 权限不足，请确保 Token 有 repo 权限');
+            } else if (response.status === 401) {
+                throw new Error('Token 无效，请重新生成');
+            } else {
+                throw new Error(`验证失败 (${response.status})`);
+            }
+        }
+
+        showStatus('连接成功！', 'success');
+        loadFiles();
+    } catch (error) {
+        showStatus('配置验证失败：' + error.message, 'error');
+    }
 }
 
 // 加载配置
@@ -47,7 +81,7 @@ function showStatus(message, type) {
     const statusEl = document.getElementById('statusText');
     statusEl.textContent = message;
     statusEl.className = type;
-    setTimeout(() => { statusEl.textContent = ''; }, 5000);
+    setTimeout(() => { statusEl.textContent = ''; }, 8000);
 }
 
 // 格式化文件大小
@@ -80,7 +114,15 @@ async function loadFiles() {
         );
 
         if (!response.ok) {
-            throw new Error('加载失败，请检查 Token 和仓库权限');
+            if (response.status === 403) {
+                throw new Error('权限不足，请检查 Token 权限');
+            } else if (response.status === 404) {
+                throw new Error('仓库未找到');
+            } else if (response.status === 401) {
+                throw new Error('Token 无效');
+            } else {
+                throw new Error(`加载失败 (${response.status})`);
+            }
         }
 
         const releases = await response.json();
@@ -95,7 +137,7 @@ async function loadFiles() {
 function displayFiles(releases) {
     const container = document.getElementById('filesList');
     if (!releases || releases.length === 0) {
-        container.innerHTML = '<p class="empty-state">暂无文件</p>';
+        container.innerHTML = '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
         return;
     }
 
@@ -130,7 +172,7 @@ function displayFiles(releases) {
         }
     });
 
-    container.innerHTML = html || '<p class="empty-state">暂无文件</p>';
+    container.innerHTML = html || '<p class="empty-state">暂无文件，上传一个文件试试吧！</p>';
 }
 
 // 下载文件
@@ -160,7 +202,13 @@ async function deleteFile(owner, repo, assetId, assetName) {
         );
 
         if (!response.ok) {
-            throw new Error('删除失败');
+            if (response.status === 403) {
+                throw new Error('权限不足，无法删除文件');
+            } else if (response.status === 404) {
+                throw new Error('文件不存在');
+            } else {
+                throw new Error('删除失败');
+            }
         }
 
         showStatus('删除成功', 'success');
@@ -189,7 +237,10 @@ async function uploadFile(file) {
     try {
         // 检查或创建 Release
         let release;
+        let isNewRelease = false;
+
         try {
+            progressText.textContent = '查找 Release...';
             const releaseResponse = await fetch(
                 `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases/tags/${config.tag}`,
                 {
@@ -202,8 +253,22 @@ async function uploadFile(file) {
 
             if (releaseResponse.ok) {
                 release = await releaseResponse.json();
+                progressText.textContent = '找到 Release...';
+            } else if (releaseResponse.status === 404) {
+                // Release 不存在，需要创建
+                isNewRelease = true;
             } else {
-                // 创建新 Release
+                throw new Error('检查 Release 失败');
+            }
+        } catch (error) {
+            isNewRelease = true;
+        }
+
+        if (isNewRelease) {
+            progressText.textContent = '创建 Release...';
+            progressFill.style.width = '20%';
+
+            try {
                 const createResponse = await fetch(
                     `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases`,
                     {
@@ -224,18 +289,26 @@ async function uploadFile(file) {
                 );
 
                 if (!createResponse.ok) {
-                    const error = await createResponse.json();
-                    throw new Error(error.message || '创建 Release 失败');
+                    const errorData = await createResponse.json().catch(() => ({}));
+                    if (createResponse.status === 403) {
+                        throw new Error('权限不足：Token 需要 repo 权限才能创建 Release');
+                    } else if (createResponse.status === 422) {
+                        throw new Error('创建失败：TAG 可能已存在或仓库验证失败，请在 GitHub 仓库页面添加一个 Release');
+                    } else if (createResponse.status === 404) {
+                        throw new Error('仓库未找到或无权访问');
+                    } else {
+                        throw new Error(errorData.message || '创建 Release 失败，请检查仓库设置');
+                    }
                 }
 
                 release = await createResponse.json();
+            } catch (error) {
+                throw new Error(error.message);
             }
-        } catch (error) {
-            throw new Error('创建 Release 失败：' + error.message);
         }
 
         progressText.textContent = '准备上传...';
-        progressFill.style.width = '10%';
+        progressFill.style.width = '30%';
 
         // 上传文件到 Release
         const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(file.name)}`);
@@ -243,7 +316,7 @@ async function uploadFile(file) {
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 90) + 10;
+                const percent = Math.round((e.loaded / e.total) * 70) + 30;
                 progressFill.style.width = percent + '%';
                 progressText.textContent = percent + '%';
             }
@@ -253,21 +326,33 @@ async function uploadFile(file) {
             if (xhr.status === 200 || xhr.status === 201 || xhr.status === 202) {
                 progressFill.style.width = '100%';
                 progressText.textContent = '上传完成';
-                showStatus('上传成功', 'success');
+                showStatus('上传成功！', 'success');
                 loadFiles();
                 setTimeout(() => { progressEl.style.display = 'none'; }, 2000);
             } else {
-                showStatus('上传失败：' + xhr.statusText, 'error');
+                let errorMsg = '上传失败';
+                if (xhr.status === 413) {
+                    errorMsg = '文件太大，超过 GitHub 限制（100MB）';
+                } else if (xhr.status === 422) {
+                    errorMsg = '文件名冲突或格式不支持';
+                }
+                showStatus(errorMsg + ` (${xhr.status})`, 'error');
                 progressEl.style.display = 'none';
             }
         });
 
         xhr.addEventListener('error', () => {
-            showStatus('网络错误', 'error');
+            showStatus('网络错误，请检查连接', 'error');
+            progressEl.style.display = 'none';
+        });
+
+        xhr.addEventListener('timeout', () => {
+            showStatus('上传超时，请重试', 'error');
             progressEl.style.display = 'none';
         });
 
         xhr.open('POST', uploadUrl, true);
+        xhr.timeout = 300000; // 5分钟超时
         xhr.setRequestHeader('Authorization', `token ${config.token}`);
         xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
 
@@ -288,7 +373,12 @@ function initDragUpload() {
 
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            uploadFile(e.target.files[0]);
+            const file = e.target.files[0];
+            if (file.size > 100 * 1024 * 1024) { // 100MB
+                showStatus('文件大小超过 100MB 限制', 'error');
+                return;
+            }
+            uploadFile(file);
         }
     });
 
@@ -305,7 +395,12 @@ function initDragUpload() {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
         if (e.dataTransfer.files.length > 0) {
-            uploadFile(e.dataTransfer.files[0]);
+            const file = e.dataTransfer.files[0];
+            if (file.size > 100 * 1024 * 1024) { // 100MB
+                showStatus('文件大小超过 100MB 限制', 'error');
+                return;
+            }
+            uploadFile(file);
         }
     });
 }
@@ -323,7 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const config = getConfig();
     if (config.token && config.owner && config.repo) {
-        loadFiles();
+        // 自动验证配置
+        verifyConfig(config.token, config.owner, config.repo);
     } else {
         // 第一次使用时显示配置面板
         document.getElementById('configPanel').style.display = 'block';
