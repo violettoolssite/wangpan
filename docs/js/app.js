@@ -219,7 +219,7 @@ function downloadFileThroughServer(btn) {
         return;
     }
     const base = `${API_BASE_URL}/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
-    const url = base + '?token=' + encodeURIComponent(config.token);
+    const url = base + '?token=' + encodeURIComponent(config.token) + '&stream=1';
     window.open(url, '_blank');
     showStatus('已打开下载，若未弹出请检查浏览器是否拦截', 'success');
 }

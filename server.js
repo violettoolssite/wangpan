@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const https = require('https');
 const { Octokit } = require('@octokit/rest');
 require('dotenv').config();
 
@@ -246,7 +247,36 @@ app.get('/api/download/:owner/:repo/:tag/:filename', async (req, res) => {
             return handleError(res, new Error('File not found'), 404);
         }
 
-        // 重定向到下载地址
+        // 可选：经服务器流式代理下载（?stream=1），适合直连 GitHub 慢时使用
+        if (req.query.stream === '1' || req.query.stream === 'true') {
+            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/releases/assets/${asset.id}`;
+            const headers = {
+                'Accept': 'application/octet-stream',
+                'Authorization': 'Bearer ' + token,
+                'User-Agent': 'github-releases-file-storage/1.0.0'
+            };
+            const followRedirect = (url, cb) => {
+                https.get(url, { headers }, (ghRes) => {
+                    if (ghRes.statusCode === 302 || ghRes.statusCode === 301) {
+                        const loc = ghRes.headers.location;
+                        if (loc) return followRedirect(loc, cb);
+                    }
+                    cb(null, ghRes);
+                }).on('error', (e) => cb(e));
+            };
+            followRedirect(apiUrl, (err, ghRes) => {
+                if (err) return handleError(res, err);
+                if (!ghRes || ghRes.statusCode !== 200) {
+                    return handleError(res, new Error('GitHub 返回异常 ' + (ghRes && ghRes.statusCode)), ghRes && ghRes.statusCode);
+                }
+                res.setHeader('Content-Disposition', 'attachment; filename*=UTF-8\'\'' + encodeURIComponent(filename));
+                if (ghRes.headers['content-length']) res.setHeader('Content-Length', ghRes.headers['content-length']);
+                ghRes.pipe(res);
+            });
+            return;
+        }
+
+        // 默认：重定向到下载地址
         res.redirect(asset.browser_download_url);
 
     } catch (error) {
