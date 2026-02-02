@@ -1,0 +1,601 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+h1 {
+    color: #2d3748;
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    color: #718096;
+    font-size: 1.1rem;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    margin-top: 15px;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+}
+
+.badge-icon {
+    font-size: 1.2em;
+}
+
+.btn-config-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.3s;
+}
+
+.btn-config-toggle:hover {
+    color: #667eea;
+}
+
+section {
+    margin-bottom: 35px;
+    padding: 25px;
+    background: #f7fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+section h2 {
+    color: #2d3748;
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    border-left: 4px solid #667eea;
+    padding-left: 12px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    color: #4a5568;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+input[type="text"],
+input[type="password"] {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+    background: white;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+small {
+    display: block;
+    margin-top: 5px;
+    color: #718096;
+    font-size: 0.8rem;
+}
+
+small a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+small a:hover {
+    text-decoration: underline;
+}
+
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-weight: 500;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    color: white;
+    width: 100%;
+}
+
+.btn-secondary {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+}
+
+.btn-refresh {
+    background: #667eea;
+    color: white;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+.info-box {
+    background: #ebf8ff;
+    border: 1px solid #bee3f8;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.info-box p {
+    color: #2c5282;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.info-box strong {
+    color: #2b6cb0;
+}
+
+.drop-zone {
+    border: 3px dashed #cbd5e0;
+    border-radius: 12px;
+    padding: 50px 30px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+    background: white;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: #667eea;
+    background: #edf2f7;
+    transform: scale(1.02);
+}
+
+.drop-zone-content {
+    pointer-events: none;
+}
+
+.upload-icon {
+    width: 80px;
+    height: 80px;
+    stroke: #a0aec0;
+    margin-bottom: 15px;
+}
+
+.drop-zone-text {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #4a5568;
+    margin-bottom: 8px;
+}
+
+.drop-zone-hint {
+    color: #718096;
+    font-size: 0.95rem;
+}
+
+.clickable {
+    color: #667eea;
+    font-weight: 500;
+    text-decoration: underline;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.upload-progress {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    width: 0%;
+    transition: width 0.3s;
+    border-radius: 6px;
+}
+
+#progressText {
+    margin-top: 10px;
+    color: #4a5568;
+    font-weight: 500;
+}
+
+.info-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fefcbf;
+    border: 1px solid #f6e05e;
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #744210;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    margin-bottom: 0;
+}
+
+.files-list {
+    margin-top: 15px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #718096;
+    padding: 40px 20px;
+    font-size: 1rem;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.file-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateX(2px);
+}
+
+.file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-weight: 500;
+    color: #2d3748;
+    margin-bottom: 4px;
+    word-break: break-all;
+}
+
+.file-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.85rem;
+}
+
+.file-size {
+    color: #718096;
+}
+
+.file-downloads {
+    color: #718096;
+}
+
+.file-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-download,
+.btn-delete {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.btn-download {
+    background: #48bb78;
+    color: white;
+}
+
+.btn-download:hover {
+    background: #38a169;
+}
+
+.btn-delete {
+    background: #f56565;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #e53e3e;
+}
+
+.refresh-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+#statusText {
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+#statusText.success {
+    color: #48bb78;
+    font-weight: 500;
+}
+
+#statusText.error {
+    color: #f56565;
+    font-weight: 500;
+}
+
+#statusText.info {
+    color: #667eea;
+    font-weight: 500;
+}
+
+/* 帮助部分 */
+.help-content {
+    color: #4a5568;
+}
+
+.help-step {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content h3 {
+    color: #2d3748;
+    margin: 0 0 5px;
+    font-size: 1.1rem;
+}
+
+.step-content p {
+    color: #718096;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.step-content a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.step-content a:hover {
+    text-decoration: underline;
+}
+
+.step-content code {
+    background: #edf2f7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', monospace;
+    font-size: 0.9rem;
+    color: #2d3748;
+}
+
+/* FAQ 部分 */
+.faq-section {
+    margin-top: 25px;
+}
+
+.faq-section h3 {
+    color: #2d3748;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.faq-item {
+    margin-bottom: 10px;
+}
+
+.faq-item details {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 15px;
+    transition: box-shadow 0.2s;
+}
+
+.faq-item details:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.faq-item summary {
+    cursor: pointer;
+    color: #2d3748;
+    font-weight: 500;
+    list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq-item summary::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 10px;
+    font-size: 0.8em;
+    transition: transform 0.2s;
+}
+
+.faq-item details[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.faq-item details p {
+    margin: 12px 0 0 0;
+    padding-left: 25px;
+    font-size: 0.95rem;
+    color: #718096;
+    line-height: 1.6;
+}
+
+/* Release 部分 */
+.release-section {
+    margin-bottom: 20px;
+}
+
+.release-section h3 {
+    color: #667eea;
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding-top: 30px;
+    border-top: 1px solid #e2e8f0;
+    color: #718096;
+    font-size: 0.85rem;
+    line-height: 1.8;
+}
+
+footer a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .file-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .file-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .badge {
+        flex-direction: column;
+        gap: 5px;
+        padding: 10px 15px;
+    }
+
+    .step-number {
+        width: 28px;
+        height: 28px;
+        font-size: 0.9rem;
+    }
+}
