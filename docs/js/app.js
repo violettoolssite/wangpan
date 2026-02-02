@@ -254,12 +254,16 @@ async function uploadFile(file) {
     if (progressText) progressText.textContent = '检查 Release...';
 
     try {
+        console.log('开始上传文件:', file.name);
+        
         // 检查或创建 Release
         let release;
         let isNewRelease = false;
 
         try {
             if (progressText) progressText.textContent = '查找 Release...';
+            console.log('查找 Release:', config.tag);
+            
             const releaseResponse = await fetch(
                 `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}/releases/tags/${config.tag}`,
                 {
@@ -273,18 +277,23 @@ async function uploadFile(file) {
             if (releaseResponse.ok) {
                 release = await releaseResponse.json();
                 if (progressText) progressText.textContent = '找到 Release';
+                console.log('找到现有 Release:', release.id);
             } else if (releaseResponse.status === 404) {
                 isNewRelease = true;
+                console.log('Release 不存在，需要创建');
             } else {
                 throw new Error('检查 Release 失败');
             }
         } catch (error) {
             isNewRelease = true;
+            console.log('检查 Release 出错，标记为新建:', error);
         }
 
         if (isNewRelease) {
             if (progressText) progressText.textContent = '创建 Release...';
             if (progressFill) progressFill.style.width = '20%';
+
+            console.log('尝试创建 Release，tag:', config.tag);
 
             try {
                 const createResponse = await fetch(
@@ -306,21 +315,31 @@ async function uploadFile(file) {
                     }
                 );
 
+                console.log('创建 Release 响应状态:', createResponse.status);
+
                 if (!createResponse.ok) {
                     const errorData = await createResponse.json().catch(() => ({}));
+                    console.error('创建 Release 失败详细信息:', errorData);
+                    
                     if (createResponse.status === 403) {
-                        throw new Error('权限不足(403): Token 需要 repo 权限才能创建 Release。请重新创建 Token 并勾选完整的 repo 权限');
+                        throw new Error('权限不足(403): Token 需要 repo 权限才能创建 Release');
                     } else if (createResponse.status === 422) {
-                        throw new Error('创建失败(422): 请手动在 GitHub 仓库页面创建一个 Release 后再试');
+                        const errorMsg = errorData.message || '未知错误';
+                        const errors = errorData.errors || [];
+                        console.error('422 错误详情:', errorMsg, errors);
+                        
+                        throw new Error(`创建失败(422): ${errorMsg}. ${errors.length > 0 ? '详情: ' + errors.map(e => e.message).join(', ') : '原因: TAG 可能已存在或仓库验证失败。建议在 GitHub 仓库页面手动创建一个 Release。'}`);
                     } else if (createResponse.status === 404) {
                         throw new Error('仓库未找到或无权访问');
                     } else {
-                        throw new Error(errorData.message || '创建 Release 失败，请检查仓库设置');
+                        throw new Error(errorData.message || '创建 Release 失败');
                     }
                 }
 
                 release = await createResponse.json();
+                console.log('Release 创建成功:', release.id);
             } catch (error) {
+                console.error('创建 Release 失败:', error);
                 throw new Error(error.message);
             }
         }
@@ -330,6 +349,7 @@ async function uploadFile(file) {
 
         // 上传文件到 Release
         const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(file.name)}`);
+        console.log('上传 URL:', uploadUrl);
 
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener('progress', (e) => {
@@ -341,6 +361,8 @@ async function uploadFile(file) {
         });
 
         xhr.addEventListener('load', () => {
+            console.log('上传完成，状态:', xhr.status);
+            
             if (xhr.status === 200 || xhr.status === 201 || xhr.status === 202) {
                 if (progressFill) progressFill.style.width = '100%';
                 if (progressText) progressText.textContent = '上传完成';
@@ -350,11 +372,12 @@ async function uploadFile(file) {
                     if (progressEl) progressEl.style.display = 'none'; 
                 }, 2000);
             } else {
+                console.error('上传失败，状态:', xhr.status);
                 let errorMsg = '上传失败';
                 if (xhr.status === 413) {
                     errorMsg = '文件太大，超过 GitHub 限制（100MB）';
                 } else if (xhr.status === 422) {
-                    errorMsg = '文件名冲突或格式不支持';
+                    errorMsg = '文件名冲突或格式不支持，尝试更换文件名';
                 }
                 showStatus(errorMsg + ` (${xhr.status})`, 'error');
                 if (progressEl) progressEl.style.display = 'none';
@@ -362,11 +385,13 @@ async function uploadFile(file) {
         });
 
         xhr.addEventListener('error', () => {
+            console.error('上传网络错误');
             showStatus('网络错误，请检查连接', 'error');
             if (progressEl) progressEl.style.display = 'none';
         });
 
         xhr.addEventListener('timeout', () => {
+            console.error('上传超时');
             showStatus('上传超时，请重试', 'error');
             if (progressEl) progressEl.style.display = 'none';
         });
@@ -379,6 +404,7 @@ async function uploadFile(file) {
         xhr.send(file);
 
     } catch (error) {
+        console.error('上传过程出错:', error);
         showStatus('上传失败：' + error.message, 'error');
         if (progressEl) progressEl.style.display = 'none';
     }
@@ -437,7 +463,7 @@ function toggleConfig() {
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('初始化 GitHub 云盘...');
+    console.log('初始化 GitHub 网盘...');
     
     loadConfig();
     initDragUpload();
