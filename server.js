@@ -87,6 +87,31 @@ async function getTokenLogin(token) {
     return login;
 }
 
+// 禁止直接使用“公共 Pages”访问 API；若请求来自 BLOCKED_ORIGIN 且 Token 不是 RESTRICT_OWNER，则 403
+const BLOCKED_ORIGIN = (process.env.BLOCKED_ORIGIN || '').trim().replace(/\/$/, '');
+app.use(async (req, res, next) => {
+    if (!BLOCKED_ORIGIN || !req.path.startsWith('/api/')) return next();
+    const origin = (req.headers.origin || '').trim();
+    const referer = (req.headers.referer || '').trim();
+    const fromBlocked = (origin && origin === BLOCKED_ORIGIN) || (referer && referer.startsWith(BLOCKED_ORIGIN));
+    if (!fromBlocked) return next();
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.query && req.query.token && String(req.query.token).trim());
+    if (!token) {
+        return res.status(403).json({
+            success: false,
+            error: '请自行 Fork 本项目并部署到自己的 GitHub Pages 后使用，不可直接使用本仓库的 Pages 地址。'
+        });
+    }
+    try {
+        const login = await getTokenLogin(token);
+        if (RESTRICT_OWNER && login === RESTRICT_OWNER) return next();
+    } catch (e) { /* 忽略 token 无效等 */ }
+    return res.status(403).json({
+        success: false,
+        error: '请自行 Fork 本项目并部署到自己的 GitHub Pages 后使用，不可直接使用本仓库的 Pages 地址。'
+    });
+});
+
 async function checkRestrictedRepo(owner, repo, token) {
     if (!RESTRICT_OWNER || !RESTRICT_REPO) return { forbidden: false };
     if (owner !== RESTRICT_OWNER || repo !== RESTRICT_REPO) return { forbidden: false };

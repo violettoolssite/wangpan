@@ -1,71 +1,52 @@
-# GitHub Releases 文件网盘服务
+# GitHub 网盘
 
-基于 GitHub Releases 的文件存储中转服务：前端（`docs/`）部署到 GitHub Pages，后端自建或使用公共服务。**直接 Fork 或使用本仓库即可当网盘使用。**
+把 GitHub 仓库当网盘用：上传 / 下载 / 删除，单文件最大 2GB，文件存在 GitHub Releases。用户只部署前端（Pages），后端用我的服务器，无需自建。
 
-## 数据存储说明
+---
 
-- **文件不会保存在你的服务器上。** 上传时：用户 → 你的服务器（仅内存中转）→ GitHub Releases。服务器使用内存临时接收文件并立即转发到 GitHub，不落盘、不持久化。
-- **上传速度取决于：** (1) 用户到服务器的上行带宽；(2) 服务器到 GitHub 的上行带宽。两端任一较慢都会成为瓶颈。
-- **下载：** 支持 302 重定向到 GitHub，或经服务器流式代理（`?stream=1`），适合直连 GitHub 慢时使用。
+## 用户怎么用
 
-## 直接当网盘使用
+1. **Fork 本仓库**，在 Settings → Pages 里选分支、目录选 **`docs`**，保存。
+2. **准备**：去 GitHub 新建一个 [Token](https://github.com/settings/tokens/new?scopes=repo)（勾选 repo）+ 一个空仓库（当网盘）。
+3. **打开你的 Pages 地址**，在页面里填 Token、仓库所有者、仓库名、Release 标签（如 `latest`），保存。
+4. 拖拽上传、点下载、点删除即可。
 
-1. Fork 或克隆本仓库，将 **`docs/`** 部署到 GitHub Pages（Settings → Pages → 选择分支与 `docs` 目录）。
-2. 在 GitHub 创建 Personal Access Token（需 `repo` 权限）：https://github.com/settings/tokens/new?scopes=repo
-3. 新建一个 GitHub 仓库，专门用于存放网盘文件（对应 Releases）。
-4. 打开你的 GitHub Pages 页面，在网页中填写 Token、仓库 owner、仓库名、Release 标签（如 `latest`），保存后即可上传、下载、删除文件。
+说明：别人不能打开「本仓库的 Pages」链接就用（会 403），必须先 Fork 本仓库、部署出自己的 Pages，用自己那个页面才能用。后端由我提供，用户不用自己搭服务器。
 
-前端默认请求公共服务 `https://wangpan.cfspider.com`；若需大文件或希望统一经过自己的域名，可自建后端并修改 `docs/js/app.js` 中的 `API_BASE_URL`。
+**举例：** 小明想用网盘，不能直接打开 `https://openwangpan.github.io/wangpan` 就用（会 403）。小明要先 Fork 本仓库，在 Settings → Pages 里把 `docs` 部署好，得到自己的页面（例如 `https://xiaoming.github.io/wangpan`），在那个页面填自己的 Token 和**网盘仓库**（例如 `xiaoming/my-files`），才能上传、下载。后端还是 `wangpan.cfspider.com`，小明不用搭服务器。
 
-**Fork 后能否正常用？** 可以。Fork 后把 `docs/` 部署到你自己仓库的 GitHub Pages，在页面里填写**你自己的** Token 和**你自己的**仓库（不要填本仓库的 owner/repo），即可正常使用；公共服务会接受非受保护仓库的请求。
+**Pages 和网盘仓库要一样吗？** 不用。Pages 是你 Fork 的本仓库部署出来的「网盘网页」地址；网盘仓库是你在网页里填的、用来存文件的那个仓库（任意一个你的 repo 都行）。可以一个是 `xiaoming.github.io/wangpan`（Pages），一个是 `xiaoming/my-files`（网盘仓库）。
 
-## 部署后端服务
+**仓库所有者和部署 Pages 的账号要一样吗？** 不用。部署 Pages 的是你 Fork 用的那个 GitHub 账号；仓库所有者是你在网页里填的、存文件的仓库属于谁。只要你的 Token 能访问那个仓库就行，可以是同一个账号，也可以是你有权限的组织（org）或其他账号。
+
+---
+
+## 自建后端（可选）
+
+只给打算自己跑一套后端的人看。
 
 ```bash
-# 克隆仓库
-git clone https://github.com/openwangpan/wangpan.git
-cd wangpan
-
-# 安装依赖
-npm install
-
-# 复制配置文件
-cp .env.example .env
-
-# 启动服务
-npm start
+git clone https://github.com/openwangpan/wangpan.git && cd wangpan
+npm install && cp .env.example .env && npm start
 ```
 
-详细配置见 `server.js` 内注释。前端 `docs/js/app.js` 中的 `API_BASE_URL` 指向你的后端地址即可。
+改 `docs/js/app.js` 里的 `API_BASE_URL` 为你的后端地址，再把 `docs/` 部署出去即可。
 
-## 受保护仓库（仅仓库所有者可用）
+**.env 可选：**
 
-若你提供公共服务，可设置「受保护仓库」：**只有该仓库的所有者能用该仓库做网盘，其他用户会得到 403，需 Fork 本项目后使用自己的仓库。**
+| 变量 | 作用 |
+|------|------|
+| `BLOCKED_ORIGIN` | 填你本仓库的 Pages 来源（如 `https://用户名.github.io`），来自该地址的请求 403，强制对方 Fork 后自建 Pages |
+| `RESTRICT_OWNER` / `RESTRICT_REPO` | 只允许该仓库所有者用该仓库当网盘，其他人 403 |
 
-在 `.env` 中设置：
+---
 
-- `RESTRICT_OWNER`：受保护仓库的 GitHub 用户名（如 `openwangpan`）
-- `RESTRICT_REPO`：受保护仓库名（如 `wangpan`）
+## 常见问题
 
-设置后，只有该用户的 Token 才能对该 `owner/repo` 做上传、列表、删除、下载；其他人用别的 Token 访问该仓库会收到 403。未在受保护列表中的其他仓库不受影响。
+- **文件存在哪？** GitHub Releases，服务器不落盘，只做中转。
+- **为什么慢？** 上传看「你→服务器」和「服务器→GitHub」两段网速；下载默认经服务器代理（`?stream=1`），适合直连 GitHub 慢的情况。
+- **Token 安全吗？** 只存在浏览器本地，后端不存。
 
-## 特性
+---
 
-- 大文件上传：单文件最大 2GB（GitHub Releases 限制）
-- Token 认证，支持私有仓库
-- 文件实际存储在 GitHub Releases，不占服务器磁盘
-- 下载可经服务器代理（`?stream=1`），改善直连 GitHub 慢时的速度
-
-## 安全性
-
-- Token 仅保存在浏览器本地
-- 服务器不持久化文件与 Token，仅做中转
-
-## 开源协议
-
-MIT License
-
-## 联系方式
-
-- GitHub: https://github.com/openwangpan/wangpan
-- 在线服务: https://wangpan.cfspider.com/
+[仓库](https://github.com/openwangpan/wangpan) · [网盘入口](https://wangpan.cfspider.com) · MIT License
