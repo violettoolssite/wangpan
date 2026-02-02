@@ -159,17 +159,18 @@ function displayFiles(releases) {
         if (release.assets && release.assets.length > 0) {
             html += `<div class="release-section"><h3>${release.tag}</h3>`;
             release.assets.forEach(asset => {
+                const downloadUrl = asset.downloadUrl || asset.browser_download_url || '#';
                 html += `
                     <div class="file-item">
                         <div class="file-info">
                             <div class="file-name">${escapeHtml(asset.name)}</div>
                             <div class="file-meta">
                                 <span class="file-size">${formatFileSize(asset.size)}</span>
-                                <span class="file-downloads">${asset.downloadCount} 次下载</span>
+                                <span class="file-downloads">${asset.downloadCount ?? asset.download_count ?? 0} 次下载</span>
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="btn-download" onclick="downloadFile('${escapeHtml(downloadUrl)}', '${escapeHtml(asset.name)}')">
+                            <button class="btn-download" onclick="downloadFile('${escapeHtml(downloadUrl)}')">
                                 下载
                             </button>
                             <button class="btn-delete" onclick="deleteFile('${config.owner}', '${config.repo}', ${asset.id}, '${escapeHtml(asset.name)}')">
@@ -194,7 +195,7 @@ function escapeHtml(text) {
 }
 
 // 下载文件
-function downloadFile(url, filename) {
+function downloadFile(url) {
     window.open(url, '_blank');
 }
 
@@ -210,7 +211,7 @@ async function deleteFile(owner, repo, assetId, assetName) {
     try {
         // 通过后端代理删除文件
         const response = await fetch(
-            `${API_BASE_URL}/api/delete-asset?owner=${owner}&repo=${repo}&assetId=${assetId}`,
+            `${API_BASE_URL}/api/delete-asset?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&assetId=${assetId}`,
             {
                 headers: { 'Authorization': `Bearer ${config.token}` }
             }
@@ -225,6 +226,7 @@ async function deleteFile(owner, repo, assetId, assetName) {
         loadFiles();
     } catch (error) {
         showStatus('删除失败：' + error.message, 'error');
+        console.error('删除失败详情:', error);
     }
 }
 
@@ -313,15 +315,15 @@ function uploadFile(file) {
     });
 
     xhr.addEventListener('timeout', () => {
-        console.error('上传超时（10分钟）');
-        showStatus('上传超时（10分钟），文件可能太大，请重试', 'error');
+        console.error('上传超时（20分钟）');
+        showStatus('上传超时（20分钟），文件可能太大，请重试', 'error');
         if (progressEl) progressEl.style.display = 'none';
     });
 
     xhr.open('POST', `${API_BASE_URL}/api/upload`, true);
     xhr.timeout = 1200000; // 20分钟超时，支持大文件
     
-    // 添加下载进度监听
+    // 添加进度监听
     xhr.addEventListener('progress', (e) => {
         if (progressText && e.loaded && e.lengthComputable) {
             console.log(`上传进度: ${Math.round((e.loaded / e.total) * 100)}%`);

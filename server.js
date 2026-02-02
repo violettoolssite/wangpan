@@ -59,7 +59,11 @@ const createOctokit = (token) => {
 // 上传文件到GitHub Releases
 app.post('/api/upload', validateToken, upload.single('file'), async (req, res) => {
     try {
-        const { owner, repo, tag = 'latest' } = req.body;
+        const body = req.body || {};
+        const owner = body.owner;
+        const repo = body.repo;
+        let tag = body.tag;
+        if (!tag || String(tag).trim() === '' || String(tag) === 'undefined') tag = 'latest';
         const file = req.file;
         const token = req.token;
 
@@ -121,7 +125,11 @@ app.post('/api/upload', validateToken, upload.single('file'), async (req, res) =
         });
 
     } catch (error) {
-        handleError(res, error);
+        // 透传 GitHub API 状态码和错误信息，便于前端显示
+        const statusCode = error.status || error.response?.status || 500;
+        const message = (error.response?.data?.message) || error.message || 'Internal server error';
+        console.error('[upload]', statusCode, message, error.response?.data || '');
+        handleError(res, new Error(message), statusCode);
     }
 });
 

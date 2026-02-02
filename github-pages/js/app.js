@@ -104,19 +104,22 @@ function displayFiles(releases) {
 
     releases.forEach(release => {
         if (release.assets && release.assets.length > 0) {
-            html += `<div class="release-section"><h3>${release.tag_name}</h3>`;
+            const tag = release.tag || release.tag_name || '';
+            html += `<div class="release-section"><h3>${tag}</h3>`;
             release.assets.forEach(asset => {
+                const downloadUrl = asset.downloadUrl || asset.browser_download_url || '#';
+                const downloadCount = asset.downloadCount ?? asset.download_count ?? 0;
                 html += `
                     <div class="file-item">
                         <div class="file-info">
                             <div class="file-name">${asset.name}</div>
                             <div class="file-meta">
                                 <span class="file-size">${formatFileSize(asset.size)}</span>
-                                <span class="file-downloads">${asset.download_count} 次下载</span>
+                                <span class="file-downloads">${downloadCount} 次下载</span>
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="btn-download" onclick="downloadFile('${asset.browser_download_url}')">
+                            <button class="btn-download" onclick="downloadFile('${downloadUrl}')">
                                 下载
                             </button>
                             <button class="btn-delete" onclick="deleteFile('${config.owner}', '${config.repo}', ${asset.id}, '${asset.name}')">
