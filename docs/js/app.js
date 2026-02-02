@@ -159,7 +159,6 @@ function displayFiles(releases) {
         if (release.assets && release.assets.length > 0) {
             html += `<div class="release-section"><h3>${release.tag}</h3>`;
             release.assets.forEach(asset => {
-                const downloadUrl = asset.downloadUrl || asset.browser_download_url || '#';
                 html += `
                     <div class="file-item">
                         <div class="file-info">
@@ -170,10 +169,10 @@ function displayFiles(releases) {
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="btn-download" onclick="downloadFile('${escapeHtml(downloadUrl)}')">
+                            <button class="btn-download" data-owner="${attrEsc(config.owner)}" data-repo="${attrEsc(config.repo)}" data-tag="${attrEsc(release.tag)}" data-filename="${attrEsc(asset.name)}" onclick="downloadFileThroughServer(this)">
                                 下载
                             </button>
-                            <button class="btn-delete" onclick="deleteFile('${config.owner}', '${config.repo}', ${asset.id}, '${escapeHtml(asset.name)}')">
+                            <button class="btn-delete" onclick="deleteFile('${escapeHtml(config.owner)}', '${escapeHtml(config.repo)}', ${asset.id}, '${escapeHtml(asset.name)}')">
                                 删除
                             </button>
                         </div>
@@ -194,7 +193,50 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// 下载文件
+// 属性值转义（用于 data-*）
+function attrEsc(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// 经服务器下载（先请求 /api/download，再跳转到返回的地址）
+async function downloadFileThroughServer(btn) {
+    const owner = btn.getAttribute('data-owner');
+    const repo = btn.getAttribute('data-repo');
+    const tag = btn.getAttribute('data-tag');
+    const filename = btn.getAttribute('data-filename');
+    if (!owner || !repo || !tag || !filename) {
+        showStatus('下载参数缺失', 'error');
+        return;
+    }
+    const config = getConfig();
+    if (!config.token) {
+        showStatus('请先配置 Token', 'error');
+        return;
+    }
+    const url = `${API_BASE_URL}/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
+    try {
+        const res = await fetch(url, { redirect: 'manual', headers: { 'Authorization': `Bearer ${config.token}` } });
+        if (res.status === 302) {
+            const loc = res.headers.get('Location');
+            if (loc) window.open(loc, '_blank');
+            else showStatus('获取下载链接失败', 'error');
+        } else if (res.status === 200) {
+            window.open(url, '_blank');
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showStatus(err.error || '下载失败', 'error');
+        }
+    } catch (e) {
+        showStatus('下载失败：' + (e.message || '网络错误'), 'error');
+    }
+}
+
+// 下载文件（直接打开 URL，保留用于兼容）
 function downloadFile(url) {
     window.open(url, '_blank');
 }

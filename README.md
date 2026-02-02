@@ -1,40 +1,51 @@
 # GitHub Releases 文件网盘服务
 
-基于 GitHub Releases 的文件存储中转服务，提供纯前端和后端两种版本。
+基于 GitHub Releases 的文件存储中转服务。**直接 Fork 或使用本仓库即可当网盘使用**：前端部署到 GitHub Pages，后端可选自建或使用公共服务。
 
-## 🌟 版本说明
+## 数据存储说明
+
+- **文件不会保存在你的服务器上。** 上传时：用户 → 你的服务器（仅内存中转）→ GitHub Releases。服务器使用内存临时接收文件并立即转发到 GitHub，不落盘、不持久化。
+- **上传速度取决于：** (1) 用户到服务器的上行带宽；(2) 服务器到 GitHub 的上行带宽。两端任一较慢都会成为瓶颈。
+- **下载可通过服务器：** 已提供 `/api/download/:owner/:repo/:tag/:filename` 接口，请求会经服务器重定向到 GitHub 的下载地址；若需下载流量完全经服务器代理，可在后端自行扩展代理逻辑。
+
+## 版本说明
 
 ### 1. 纯前端版本（GitHub Pages）
-- 🌐 **纯前端应用** - 完全运行在浏览器中
-- 🔧 **无需服务器** - 直接调用 GitHub API
-- 💾 **GitHub 托管** - 免费部署在 GitHub Pages
 
-**部署访问**: 本仓库的 GitHub Pages
+- 纯前端应用，完全在浏览器中运行
+- 无需自建服务器，直接调用 GitHub API
+- 部署在 GitHub Pages 即可使用
+
+**部署访问**: 本仓库的 GitHub Pages  
 **配置位置**: `docs/` 目录
 
 ### 2. 后端服务版本
-- 🚀 支持 2GB 大文件上传
-- 📡 提供 RESTful API
-- 🌍 中转服务
+
+- 支持最大 2GB 单文件上传（GitHub Releases 限制）
+- 提供 RESTful API，供前端或其它客户端调用
+- 可作为中转服务，解决跨域与大文件上传限制
 
 **在线地址**: https://wangpan.cfspider.com/
 
-## 📖 使用 GitHub Pages 版本
+## 直接当网盘使用
 
-### 快速开始
+1. Fork 或克隆本仓库，将 `docs/` 部署到 GitHub Pages（Settings → Pages → 选择分支与 `docs` 目录）。
+2. 在 GitHub 创建 Personal Access Token（需 `repo` 权限）：https://github.com/settings/tokens/new?scopes=repo
+3. 新建一个 GitHub 仓库，专门用于存放网盘文件（对应 Releases）。
+4. 打开你的 GitHub Pages 页面，在网页中填写 Token、仓库 owner、仓库名、Release 标签（如 `latest`），保存后即可上传、下载、删除文件。
 
-1. 访问本仓库的 GitHub Pages（从 Settings → Pages 查看）
-2. 准备 GitHub Token:
-   - 访问 https://github.com/settings/tokens/new?scopes=repo
-   - 生成 `repo` 权限的 Token
-3. 创建一个 GitHub 仓库用于存储文件
-4. 在网页界面输入 Token 和仓库信息，开始上传文件
+无需改代码即可当网盘使用；若需大文件（>100MB）或希望统一经过自己的域名，可自建后端并让前端指向你的 API 地址。
 
-### 详细文档
+## 使用 GitHub Pages 版本
 
-查看: [GITHUB_PAGES_README.md](GITHUB_PAGES_README.md)
+1. 访问本仓库的 GitHub Pages（Settings → Pages 中查看地址）
+2. 按上文准备 Token 和仓库
+3. 在页面中填写 Token、仓库所有者、仓库名、Release 标签
+4. 上传、下载、删除文件
 
-## 📦 部署后端服务
+更多说明见 [GITHUB_PAGES_README.md](GITHUB_PAGES_README.md)。
+
+## 部署后端服务
 
 ```bash
 # 克隆仓库
@@ -51,34 +62,31 @@ cp .env.example .env
 npm start
 ```
 
-详细配置请查看 `server.js` 中的注释。
+详细配置见 `server.js` 内注释。
 
-## ✨ 特性
+## 特性
 
-- 🚀 支持大文件上传（后端版 2GB，前端版 100MB）
-- 🔐 Token 认证
-- 💾 文件存储在 GitHub Releases
-- ⚡ 中转加速
-- 🌍 公共服务
-- 📱 响应式界面
+- 大文件上传：后端版最大 2GB，前端直连 GitHub 受 100MB 左右限制
+- Token 认证，支持私有仓库
+- 文件实际存储在 GitHub Releases，不占服务器磁盘
+- 下载可通过 `/api/download` 经服务器重定向到 GitHub
 
-## 🔒 安全性
+## 安全性
 
-- Token 仅保存在浏览器本地（前端版）
-- 服务器不存储文件或凭证（后端版）
-- 支持私有仓库
+- 前端版：Token 仅保存在浏览器本地
+- 后端版：服务器不持久化文件与 Token，仅做中转
 
-## 📄 开源协议
+## 开源协议
 
 MIT License
 
-## 🙏 致谢
+## 致谢
 
-- 基于 GitHub Releases API
-- 使用 Express.js 框架（后端版）
-- 纯 JavaScript 实现（前端版）
+- GitHub Releases API
+- Express.js（后端）
+- 纯 JavaScript 实现（前端）
 
-## 📞 联系方式
+## 联系方式
 
 - GitHub: https://github.com/openwangpan/wangpan
 - 在线服务: https://wangpan.cfspider.com/
