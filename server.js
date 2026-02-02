@@ -1,3 +1,4 @@
+// GitHub Releases 文件网盘中转服务
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -10,7 +11,7 @@ const PORT = process.env.PORT || 3002;
 // CORS配置 - 允许所有来源（公共服务）
 app.use(cors({
     origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
     credentials: false
 }));
@@ -124,6 +125,35 @@ app.post('/api/upload', validateToken, upload.single('file'), async (req, res) =
     }
 });
 
+// 删除资产
+app.get('/api/delete-asset', validateToken, async (req, res) => {
+    try {
+        const { owner, repo, assetId } = req.query;
+        const token = req.token;
+
+        if (!owner || !repo || !assetId) {
+            return handleError(res, new Error('Missing required parameters: owner, repo, assetId'), 400);
+        }
+
+        const octokit = createOctokit(token);
+
+        // 删除资产
+        await octokit.rest.repos.deleteReleaseAsset({
+            owner,
+            repo,
+            asset_id: parseInt(assetId)
+        });
+
+        res.json({
+            success: true,
+            message: 'Asset deleted successfully'
+        });
+
+    } catch (error) {
+        handleError(res, error);
+    }
+});
+
 // 下载文件
 app.get('/api/download/:owner/:repo/:tag/:filename', async (req, res) => {
     try {
@@ -215,6 +245,7 @@ app.get('/', (req, res) => {
         message: 'GitHub Releases 文件网盘中转服务',
         endpoints: {
             upload: 'POST /api/upload',
+            deleteAsset: 'GET /api/delete-asset?owner=&repo=&assetId=',
             download: 'GET /api/download/:owner/:repo/:tag/:filename',
             list: 'GET /api/list/:owner/:repo',
             health: 'GET /api/health'
