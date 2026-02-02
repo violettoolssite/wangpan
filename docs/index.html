@@ -15,23 +15,32 @@
             <div class="badge">
                 <span class="badge-text">支持大文件 · 最大 2GB · 后端代理</span>
             </div>
+            <!-- 登录态：未登录显示「用 GitHub 登录」，已登录显示用户与登出 -->
+            <div id="authBar" class="auth-bar">
+                <a id="loginLink" href="#" class="btn-login">用 GitHub 登录</a>
+                <span id="loggedInInfo" class="logged-in-info" style="display: none;">
+                    <span>已登录：<strong id="userLogin"></strong></span>
+                    <button type="button" id="saveConfigToAccount" class="btn-secondary">保存配置到账号</button>
+                    <button type="button" id="logoutBtn" class="btn-logout">登出</button>
+                </span>
+            </div>
             <button id="toggleConfig" class="btn-config-toggle">配置</button>
         </header>
 
-        <!-- 配置面板 -->
+        <!-- 配置面板（登录后仅显示仓库配置，Token 由 Session 提供；未登录可填本地 Token） -->
         <section id="configPanel" class="config-panel" style="display: none;">
             <h2>连接到 GitHub</h2>
+            <div id="localTokenRow" class="form-group">
+                <label>GitHub Token (Personal Access Token)</label>
+                <input type="password" id="githubToken" placeholder="ghp_xxxxxxxx">
+                <small>
+                    <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
+                        点击创建 Token → 勾选 repo 权限
+                    </a>
+                    <span class="warning-text">必须勾选 repo 权限！</span>
+                </small>
+            </div>
             <div class="config-form">
-                <div class="form-group">
-                    <label>GitHub Token (Personal Access Token)</label>
-                    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxx">
-                    <small>
-                        <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">
-                            点击创建 Token → 勾选 repo 权限
-                        </a>
-                        <span class="warning-text">必须勾选 repo 权限！</span>
-                    </small>
-                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>仓库所有者 (Owner)</label>

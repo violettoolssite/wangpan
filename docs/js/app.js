@@ -1,42 +1,156 @@
-// GitHub Pages 版本 - 使用后端代理上传到 Releases
+// GitHub 网盘 - 支持 GitHub 登录 + Gist 配置同步（换设备只需登录）
 
-const API_BASE_URL = 'https://wangpan.cfspider.com'; // 后端代理服务地址
+const API_BASE_URL = (typeof window !== 'undefined' && window.WANGPAN_API_BASE) ? window.WANGPAN_API_BASE.replace(/\/$/, '') : (typeof window !== 'undefined' ? window.location.origin : '');
 
-// 获取配置
+let isLoggedIn = false;
+
+// 获取配置：已登录时从表单取值（Token 由 Session 提供）；未登录时从 localStorage 取
 function getConfig() {
-    return {
-        token: localStorage.getItem('githubToken') || '',
-        owner: localStorage.getItem('repoOwner') || '',
-        repo: localStorage.getItem('repoName') || '',
-        tag: localStorage.getItem('releaseTag') || 'latest'
-    };
+    const owner = document.getElementById('repoOwner')?.value?.trim() || localStorage.getItem('repoOwner') || '';
+    const repo = document.getElementById('repoName')?.value?.trim() || localStorage.getItem('repoName') || '';
+    const tag = document.getElementById('releaseTag')?.value?.trim() || localStorage.getItem('releaseTag') || 'latest';
+    const token = isLoggedIn ? '' : (localStorage.getItem('githubToken') || '');
+    return { token, owner, repo, tag };
 }
 
-// 保存配置
-function saveConfig() {
-    const token = document.getElementById('githubToken')?.value.trim() || '';
-    const owner = document.getElementById('repoOwner')?.value.trim() || '';
-    const repo = document.getElementById('repoName')?.value.trim() || '';
-    const tag = document.getElementById('releaseTag')?.value.trim() || 'latest';
+// 带凭证的 fetch 选项（登录态用 Cookie，未登录用 Bearer Token）
+function apiOptions() {
+    const opts = { credentials: 'include' };
+    if (!isLoggedIn) {
+        const token = localStorage.getItem('githubToken') || '';
+        if (token) opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token };
+    }
+    return opts;
+}
 
-    if (!token || !owner || !repo) {
-        showStatus('请填写完整的配置信息', 'error');
+// 检查登录态并更新 UI
+async function checkAuth() {
+    try {
+        const res = await fetch(API_BASE_URL + '/api/me', apiOptions());
+        if (res.ok) {
+            const data = await res.json();
+            setLoggedIn(data.login, data.id);
+            await fetchConfigFromAccount();
+            return true;
+        }
+    } catch (e) {
+        console.warn('checkAuth', e);
+    }
+    setLoggedOut();
+    return false;
+}
+
+function setLoggedIn(login, id) {
+    isLoggedIn = true;
+    document.getElementById('loginLink').style.display = 'none';
+    const info = document.getElementById('loggedInInfo');
+    if (info) {
+        info.style.display = 'inline-flex';
+        const el = document.getElementById('userLogin');
+        if (el) el.textContent = login || '';
+    }
+    const tokenRow = document.getElementById('localTokenRow');
+    if (tokenRow) tokenRow.style.display = 'none';
+}
+
+function setLoggedOut() {
+    isLoggedIn = false;
+    document.getElementById('loginLink').style.display = '';
+    const info = document.getElementById('loggedInInfo');
+    if (info) info.style.display = 'none';
+    const tokenRow = document.getElementById('localTokenRow');
+    if (tokenRow) tokenRow.style.display = 'block';
+}
+
+// 从账号（Gist）拉取配置并填入表单
+async function fetchConfigFromAccount() {
+    try {
+        const res = await fetch(API_BASE_URL + '/api/user/config', apiOptions());
+        if (!res.ok) return;
+        const data = await res.json();
+        const c = data.config || {};
+        const ownerEl = document.getElementById('repoOwner');
+        const repoEl = document.getElementById('repoName');
+        const tagEl = document.getElementById('releaseTag');
+        if (ownerEl) ownerEl.value = c.owner || '';
+        if (repoEl) repoEl.value = c.repo || '';
+        if (tagEl) tagEl.value = c.tag || 'latest';
+        if (c.owner && c.repo) loadFiles();
+    } catch (e) {
+        console.warn('fetchConfigFromAccount', e);
+    }
+}
+
+// 保存当前表单配置到账号（Gist）
+async function saveConfigToAccount() {
+    const owner = document.getElementById('repoOwner')?.value?.trim() || '';
+    const repo = document.getElementById('repoName')?.value?.trim() || '';
+    const tag = document.getElementById('releaseTag')?.value?.trim() || 'latest';
+    if (!owner || !repo) {
+        showStatus('请填写仓库所有者与仓库名', 'error');
+        return;
+    }
+    showStatus('保存中...', 'info');
+    try {
+        const res = await fetch(API_BASE_URL + '/api/user/config', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ owner, repo, tag })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || '保存失败');
+        }
+        showStatus('配置已保存到账号，换设备登录即可使用', 'success');
+    } catch (e) {
+        showStatus('保存失败：' + (e.message || e), 'error');
+    }
+}
+
+// 登出
+async function logout() {
+    try {
+        await fetch(API_BASE_URL + '/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {}
+    setLoggedOut();
+    loadConfig();
+    document.getElementById('filesList').innerHTML = '<p class="empty-state">请用 GitHub 登录或配置本地信息</p>';
+    showStatus('已登出', 'success');
+}
+
+// 保存配置（本地模式：写入 localStorage，并验证）
+function saveConfig() {
+    const token = document.getElementById('githubToken')?.value?.trim() || '';
+    const owner = document.getElementById('repoOwner')?.value?.trim() || '';
+    const repo = document.getElementById('repoName')?.value?.trim() || '';
+    const tag = document.getElementById('releaseTag')?.value?.trim() || 'latest';
+
+    if (!owner || !repo) {
+        showStatus('请填写仓库所有者与仓库名', 'error');
+        return;
+    }
+    if (!isLoggedIn && !token) {
+        showStatus('未登录时请填写 GitHub Token', 'error');
         return;
     }
 
-    localStorage.setItem('githubToken', token);
     localStorage.setItem('repoOwner', owner);
     localStorage.setItem('repoName', repo);
     localStorage.setItem('releaseTag', tag);
+    if (!isLoggedIn) localStorage.setItem('githubToken', token);
 
     showStatus('配置已保存，正在验证...', 'success');
-
-    // 验证配置（通过检查仓库）
-    verifyConfig(token, owner, repo);
+    verifyConfig(isLoggedIn ? null : token, owner, repo);
 }
 
-// 验证配置
+// 验证配置（登录态不直接调 GitHub，直接拉列表）
 async function verifyConfig(token, owner, repo) {
+    if (isLoggedIn) {
+        showStatus('连接成功！', 'success');
+        loadFiles();
+        return;
+    }
     try {
         const response = await fetch(
             `https://api.github.com/repos/${owner}/${repo}`,
@@ -106,19 +220,20 @@ function formatFileSize(bytes) {
 // 加载文件列表
 async function loadFiles() {
     const config = getConfig();
-    if (!config.token || !config.owner || !config.repo) {
-        showStatus('请先配置 GitHub 信息', 'error');
+    if (!config.owner || !config.repo) {
+        showStatus('请先配置仓库信息或登录', 'error');
+        return;
+    }
+    if (!isLoggedIn && !config.token) {
+        showStatus('请用 GitHub 登录或填写 Token', 'error');
         return;
     }
 
     showStatus('加载中...', 'info');
     try {
-        // 通过后端代理获取 Releases 列表
         const response = await fetch(
             `${API_BASE_URL}/api/list/${config.owner}/${config.repo}`,
-            {
-                headers: { 'Authorization': `Bearer ${config.token}` }
-            }
+            apiOptions()
         );
 
         if (!response.ok) {
@@ -203,7 +318,7 @@ function attrEsc(str) {
         .replace(/>/g, '&gt;');
 }
 
-// 经服务器下载：直接打开带 token 的链接，由服务器 302 到 GitHub，避免 fetch 跨域导致 status 0
+// 经服务器下载：登录态用 Cookie，未登录用 query token
 function downloadFileThroughServer(btn) {
     const owner = btn.getAttribute('data-owner');
     const repo = btn.getAttribute('data-repo');
@@ -214,12 +329,13 @@ function downloadFileThroughServer(btn) {
         return;
     }
     const config = getConfig();
-    if (!config.token) {
-        showStatus('请先配置 Token', 'error');
+    if (!isLoggedIn && !config.token) {
+        showStatus('请先登录或配置 Token', 'error');
         return;
     }
     const base = `${API_BASE_URL}/api/download/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
-    const url = base + '?token=' + encodeURIComponent(config.token) + '&stream=1';
+    let url = base + '?stream=1';
+    if (!isLoggedIn && config.token) url += '&token=' + encodeURIComponent(config.token);
     window.open(url, '_blank');
     showStatus('已打开下载，若未弹出请检查浏览器是否拦截', 'success');
 }
@@ -239,12 +355,9 @@ async function deleteFile(owner, repo, assetId, assetName) {
     showStatus('删除中...', 'info');
 
     try {
-        // 通过后端代理删除文件
         const response = await fetch(
             `${API_BASE_URL}/api/delete-asset?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&assetId=${assetId}`,
-            {
-                headers: { 'Authorization': `Bearer ${config.token}` }
-            }
+            apiOptions()
         );
 
         if (!response.ok) {
@@ -263,8 +376,12 @@ async function deleteFile(owner, repo, assetId, assetName) {
 // 上传文件
 function uploadFile(file) {
     const config = getConfig();
-    if (!config.token || !config.owner || !config.repo) {
-        showStatus('请先配置 GitHub 信息', 'error');
+    if (!config.owner || !config.repo) {
+        showStatus('请先配置仓库信息或登录', 'error');
+        return;
+    }
+    if (!isLoggedIn && !config.token) {
+        showStatus('请用 GitHub 登录或填写 Token', 'error');
         return;
     }
 
@@ -352,15 +469,15 @@ function uploadFile(file) {
 
     xhr.open('POST', `${API_BASE_URL}/api/upload`, true);
     xhr.timeout = 1200000; // 20分钟超时，支持大文件
+    xhr.withCredentials = true;
     
-    // 添加进度监听
     xhr.addEventListener('progress', (e) => {
         if (progressText && e.loaded && e.lengthComputable) {
             console.log(`上传进度: ${Math.round((e.loaded / e.total) * 100)}%`);
         }
     });
 
-    xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
+    if (!isLoggedIn && config.token) xhr.setRequestHeader('Authorization', 'Bearer ' + config.token);
 
     xhr.send(formData);
 
@@ -419,43 +536,51 @@ function toggleConfig() {
 }
 
 // 页面加载时初始化
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('初始化 GitHub 网盘（使用后端代理）...');
-    console.log('后端 API 地址:', API_BASE_URL);
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('初始化 GitHub 网盘，API:', API_BASE_URL);
     
     loadConfig();
     initDragUpload();
 
-    const config = getConfig();
-    if (config.token && config.owner && config.repo) {
-        console.log('找到已保存配置，自动验证...');
-        verifyConfig(config.token, config.owner, config.repo);
-    } else {
-        console.log('首次使用，显示配置面板');
-        const panel = document.getElementById('configPanel');
-        if (panel) panel.style.display = 'block';
+    const loginLink = document.getElementById('loginLink');
+    if (loginLink) loginLink.href = (API_BASE_URL || window.location.origin) + '/api/auth/github';
+
+    const loggedIn = await checkAuth();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('logged_in') === '1') {
+        window.history.replaceState({}, '', window.location.pathname);
+        showStatus('登录成功，已同步配置', 'success');
+    }
+    if (params.get('login') === 'error') {
+        window.history.replaceState({}, '', window.location.pathname);
+        showStatus('登录失败，请重试', 'error');
     }
 
-    // 绑定按钮事件
+    if (!loggedIn) {
+        const config = getConfig();
+        if (config.token && config.owner && config.repo) {
+            verifyConfig(config.token, config.owner, config.repo);
+        } else {
+            const panel = document.getElementById('configPanel');
+            if (panel) panel.style.display = 'block';
+        }
+    }
+
+    document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
+    document.getElementById('saveConfigToAccount')?.addEventListener('click', () => saveConfigToAccount());
+
     const connectButton = document.getElementById('connectButton');
-    console.log('连接按钮元素:', connectButton);
-    
     if (connectButton) {
-        connectButton.addEventListener('click', function(e) {
-            console.log('点击连接按钮');
+        connectButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             saveConfig();
         });
-        console.log('已绑定连接按钮事件');
-    } else {
-        console.error('未找到连接按钮');
     }
-    
-    // 绑定配置切换按钮
+
     const toggleButton = document.getElementById('toggleConfig');
     if (toggleButton) {
-        toggleButton.addEventListener('click', function(e) {
+        toggleButton.addEventListener('click', (e) => {
             e.preventDefault();
             toggleConfig();
         });

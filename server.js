@@ -1,24 +1,41 @@
 // GitHub Releases 文件网盘中转服务
 const express = require('express');
 const cors = require('cors');
+const session = require('express-session');
 const multer = require('multer');
 const https = require('https');
 const { Octokit } = require('@octokit/rest');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// CORS配置 - 允许所有来源（公共服务）；暴露 Location 以便前端读取 302 重定向地址
+// CORS：支持带 Cookie 的请求（登录态）；暴露 Location
 app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
+    origin: true, // 反射请求的 origin，便于同源/指定源带 cookie
+    methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
     exposedHeaders: ['Location'],
-    credentials: false
+    credentials: true
 }));
 
 app.use(express.json());
+
+// Session：仅内存，不落盘；OAuth 登录后存 accessToken
+const SESSION_SECRET = (process.env.SESSION_SECRET || 'wangpan-session-secret-change-in-production').trim();
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    name: 'wangpan.sid',
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 天
+    }
+}));
 
 // 请求日志：每个请求记录 method path IP，响应完成后记录 status 与耗时
 app.use((req, res, next) => {
@@ -49,16 +66,29 @@ const handleError = (res, error, statusCode = 500) => {
     });
 };
 
-// 验证GitHub Token中间件
-const validateToken = (req, res, next) => {
+// 解析 Token：优先 Authorization Bearer，否则使用 Session 中的 OAuth token（登录态）
+const resolveToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        req.token = authHeader.substring(7);
+        return next();
+    }
+    if (req.session && req.session.accessToken) {
+        req.token = req.session.accessToken;
+        return next();
+    }
+    req.token = null;
+    next();
+};
+
+// 要求必须已有 token（Bearer 或 Session）
+const validateToken = (req, res, next) => {
+    if (!req.token) {
         return res.status(401).json({
             success: false,
-            error: 'Missing or invalid Authorization header. Expected: Bearer <token>'
+            error: '未登录或缺少 Token。请使用 GitHub 登录，或在请求头提供 Authorization: Bearer <token>'
         });
     }
-    req.token = authHeader.substring(7);
     next();
 };
 
@@ -123,8 +153,150 @@ async function checkRestrictedRepo(owner, repo, token) {
     };
 }
 
+// ---------- OAuth 与用户配置（数据不落服务器：Session 仅内存，配置存用户 Gist） ----------
+const GITHUB_CLIENT_ID = (process.env.GITHUB_OAUTH_CLIENT_ID || '').trim();
+const GITHUB_CLIENT_SECRET = (process.env.GITHUB_OAUTH_CLIENT_SECRET || '').trim();
+const OAUTH_CALLBACK_URL = (process.env.OAUTH_CALLBACK_URL || '').trim();
+const OAUTH_FRONTEND_REDIRECT = (process.env.OAUTH_FRONTEND_REDIRECT || '/').trim();
+const GIST_CONFIG_FILENAME = 'wangpan-config.json';
+const GIST_DESCRIPTION = 'wangpan';
+
+function requireSession(req, res, next) {
+    if (!req.session || !req.session.accessToken) {
+        return res.status(401).json({ success: false, error: '请先使用 GitHub 登录' });
+    }
+    next();
+}
+
+// GET /api/auth/github — 重定向到 GitHub OAuth 授权
+app.get('/api/auth/github', (req, res) => {
+    if (!GITHUB_CLIENT_ID || !OAUTH_CALLBACK_URL) {
+        return res.status(503).json({
+            success: false,
+            error: '未配置 GitHub OAuth（GITHUB_OAUTH_CLIENT_ID / OAUTH_CALLBACK_URL）'
+        });
+    }
+    const scope = 'repo gist';
+    const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(GITHUB_CLIENT_ID)}&redirect_uri=${encodeURIComponent(OAUTH_CALLBACK_URL)}&scope=${encodeURIComponent(scope)}`;
+    res.redirect(url);
+});
+
+// GET /api/auth/github/callback — 用 code 换 token，写 Session，重定向回前端
+app.get('/api/auth/github/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code || !GITHUB_CLIENT_SECRET) {
+        return res.redirect(OAUTH_FRONTEND_REDIRECT + '?login=error');
+    }
+    try {
+        const { data: tokenData } = await axios.post(
+            'https://github.com/login/oauth/access_token',
+            {
+                client_id: GITHUB_CLIENT_ID,
+                client_secret: GITHUB_CLIENT_SECRET,
+                code,
+                redirect_uri: OAUTH_CALLBACK_URL
+            },
+            { headers: { Accept: 'application/json' } }
+        );
+        const accessToken = tokenData && tokenData.access_token;
+        if (!accessToken) {
+            return res.redirect(OAUTH_FRONTEND_REDIRECT + '?login=error');
+        }
+        const octokit = createOctokit(accessToken);
+        const { data: user } = await octokit.rest.users.getAuthenticated();
+        req.session.accessToken = accessToken;
+        req.session.userLogin = user.login;
+        req.session.userId = user.id;
+        return res.redirect(OAUTH_FRONTEND_REDIRECT + '?logged_in=1');
+    } catch (e) {
+        console.error('[oauth callback]', e.message || e);
+        return res.redirect(OAUTH_FRONTEND_REDIRECT + '?login=error');
+    }
+});
+
+// POST /api/auth/logout
+app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.json({ success: true });
+    });
+});
+
+// GET /api/me — 当前登录用户（不含 token）
+app.get('/api/me', (req, res) => {
+    if (!req.session || !req.session.accessToken) {
+        return res.status(401).json({ success: false, error: '未登录' });
+    }
+    res.json({
+        success: true,
+        login: req.session.userLogin,
+        id: req.session.userId
+    });
+});
+
+// 从用户 Gist 读取网盘配置（约定 description 或文件名）
+async function getConfigFromGist(octokit) {
+    const { data: gists } = await octokit.rest.gists.list();
+    const gist = gists.find(g => g.description === GIST_DESCRIPTION || (g.files && g.files[GIST_CONFIG_FILENAME]));
+    if (!gist || !gist.files || !gist.files[GIST_CONFIG_FILENAME]) return null;
+    const raw = gist.files[GIST_CONFIG_FILENAME].content;
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+// GET /api/user/config — 从 Gist 拉取配置（不落服务器）
+app.get('/api/user/config', requireSession, async (req, res) => {
+    try {
+        const octokit = createOctokit(req.session.accessToken);
+        const config = await getConfigFromGist(octokit);
+        res.json({
+            success: true,
+            config: config || { owner: '', repo: '', tag: 'latest' }
+        });
+    } catch (e) {
+        handleError(res, e);
+    }
+});
+
+// PUT /api/user/config — 保存配置到用户 Gist（不落服务器）
+app.put('/api/user/config', requireSession, async (req, res) => {
+    try {
+        const { owner, repo, tag } = req.body || {};
+        const payload = {
+            owner: String(owner || '').trim(),
+            repo: String(repo || '').trim(),
+            tag: String(tag || 'latest').trim() || 'latest'
+        };
+        const octokit = createOctokit(req.session.accessToken);
+        const content = JSON.stringify(payload, null, 2);
+        const { data: gists } = await octokit.rest.gists.list();
+        const existing = gists.find(g => g.description === GIST_DESCRIPTION || (g.files && g.files[GIST_CONFIG_FILENAME]));
+
+        if (existing) {
+            await octokit.rest.gists.update({
+                gist_id: existing.id,
+                files: { [GIST_CONFIG_FILENAME]: { content } }
+            });
+        } else {
+            await octokit.rest.gists.create({
+                description: GIST_DESCRIPTION,
+                public: false,
+                files: { [GIST_CONFIG_FILENAME]: { content } }
+            });
+        }
+        res.json({ success: true, config: payload });
+    } catch (e) {
+        handleError(res, e);
+    }
+});
+
+// ---------- 上传/列表/删除：支持 Bearer 或 Session Token ----------
+
 // 上传文件到GitHub Releases
-app.post('/api/upload', validateToken, upload.single('file'), async (req, res) => {
+app.post('/api/upload', resolveToken, validateToken, upload.single('file'), async (req, res) => {
     try {
         const body = req.body || {};
         const owner = body.owner;
@@ -206,7 +378,7 @@ app.post('/api/upload', validateToken, upload.single('file'), async (req, res) =
 });
 
 // 删除资产
-app.get('/api/delete-asset', validateToken, async (req, res) => {
+app.get('/api/delete-asset', resolveToken, validateToken, async (req, res) => {
     try {
         const { owner, repo, assetId } = req.query;
         const token = req.token;
@@ -313,7 +485,7 @@ app.get('/api/download/:owner/:repo/:tag/:filename', async (req, res) => {
 });
 
 // 列出所有releases
-app.get('/api/list/:owner/:repo', validateToken, async (req, res) => {
+app.get('/api/list/:owner/:repo', resolveToken, validateToken, async (req, res) => {
     try {
         const { owner, repo } = req.params;
         const token = req.token;
@@ -369,6 +541,13 @@ app.get('/', (req, res) => {
     res.json({
         message: 'GitHub Releases 文件网盘中转服务',
         endpoints: {
+            auth: {
+                login: 'GET /api/auth/github',
+                logout: 'POST /api/auth/logout',
+                me: 'GET /api/me',
+                userConfig: 'GET /api/user/config',
+                saveUserConfig: 'PUT /api/user/config'
+            },
             upload: 'POST /api/upload',
             deleteAsset: 'GET /api/delete-asset?owner=&repo=&assetId=',
             download: 'GET /api/download/:owner/:repo/:tag/:filename',
@@ -376,11 +555,10 @@ app.get('/', (req, res) => {
             health: 'GET /api/health'
         },
         usage: {
-            note: '所有用户可以使用此公共服务',
+            note: '支持 GitHub 登录（配置存 Gist，数据不落服务器）或 Bearer Token',
             requirements: [
-                '需要GitHub Personal Access Token',
-                '需要GitHub仓库用于存储文件',
-                'Token需要在Authorization头中提供'
+                '登录：GET /api/auth/github，或请求头 Authorization: Bearer <token>',
+                '配置：GET/PUT /api/user/config（登录后）'
             ]
         }
     });
